@@ -1,0 +1,359 @@
+/*
+ * libembedding - C Header-Only Embedding Library
+ * types.h - Core types, opaque handles, enums, output structures
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#ifndef LIBEMBEDDING_TYPES_H
+#define LIBEMBEDDING_TYPES_H
+
+#include "config.h"
+#include "error.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* =========================================================================
+ * Execution Provider
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_PROVIDER_CPU = 0,
+    LEMBED_PROVIDER_CUDA,
+    LEMBED_PROVIDER_COREML,
+    LEMBED_PROVIDER_DIRECTML,
+    LEMBED_PROVIDER_TENSORRT,
+} lembed_execution_provider_t;
+
+/* =========================================================================
+ * Pooling Strategy
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_POOLING_CLS = 0,
+    LEMBED_POOLING_MEAN,
+} lembed_pooling_t;
+
+/* =========================================================================
+ * Quantization Mode
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_QUANTIZATION_NONE = 0,
+    LEMBED_QUANTIZATION_STATIC,
+    LEMBED_QUANTIZATION_DYNAMIC,
+} lembed_quantization_t;
+
+/* =========================================================================
+ * Text Embedding Models (~40 models, matching fastembed-rs)
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_TEXT_ALL_MINILM_L6_V2 = 0,
+    LEMBED_TEXT_ALL_MINILM_L6_V2_Q,
+    LEMBED_TEXT_ALL_MINILM_L12_V2,
+    LEMBED_TEXT_ALL_MINILM_L12_V2_Q,
+    LEMBED_TEXT_ALL_MPNET_BASE_V2,
+    LEMBED_TEXT_BGE_BASE_EN_V15,
+    LEMBED_TEXT_BGE_BASE_EN_V15_Q,
+    LEMBED_TEXT_BGE_LARGE_EN_V15,
+    LEMBED_TEXT_BGE_LARGE_EN_V15_Q,
+    LEMBED_TEXT_BGE_SMALL_EN_V15,        /* default */
+    LEMBED_TEXT_BGE_SMALL_EN_V15_Q,
+    LEMBED_TEXT_NOMIC_EMBED_TEXT_V1,
+    LEMBED_TEXT_NOMIC_EMBED_TEXT_V15,
+    LEMBED_TEXT_NOMIC_EMBED_TEXT_V15_Q,
+    LEMBED_TEXT_PARAPHRASE_ML_MINILM_L12_V2,
+    LEMBED_TEXT_PARAPHRASE_ML_MINILM_L12_V2_Q,
+    LEMBED_TEXT_PARAPHRASE_ML_MPNET_BASE_V2,
+    LEMBED_TEXT_BGE_SMALL_ZH_V15,
+    LEMBED_TEXT_BGE_LARGE_ZH_V15,
+    LEMBED_TEXT_BGE_M3,
+    LEMBED_TEXT_MODERNBERT_EMBED_LARGE,
+    LEMBED_TEXT_MULTILINGUAL_E5_SMALL,
+    LEMBED_TEXT_MULTILINGUAL_E5_BASE,
+    LEMBED_TEXT_MULTILINGUAL_E5_LARGE,
+    LEMBED_TEXT_MXBAI_EMBED_LARGE_V1,
+    LEMBED_TEXT_MXBAI_EMBED_LARGE_V1_Q,
+    LEMBED_TEXT_GTE_BASE_EN_V15,
+    LEMBED_TEXT_GTE_BASE_EN_V15_Q,
+    LEMBED_TEXT_GTE_LARGE_EN_V15,
+    LEMBED_TEXT_GTE_LARGE_EN_V15_Q,
+    LEMBED_TEXT_CLIP_VIT_B32,
+    LEMBED_TEXT_JINA_EMBEDDINGS_V2_BASE_CODE,
+    LEMBED_TEXT_JINA_EMBEDDINGS_V2_BASE_EN,
+    LEMBED_TEXT_EMBEDDING_GEMMA_300M,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_XS,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_XS_Q,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_S,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_S_Q,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_M,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_M_Q,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_M_LONG,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_M_LONG_Q,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_L,
+    LEMBED_TEXT_SNOWFLAKE_ARCTIC_EMBED_L_Q,
+    LEMBED_TEXT_MODEL_COUNT,
+} lembed_text_model_t;
+
+#define LEMBED_TEXT_MODEL_DEFAULT LEMBED_TEXT_BGE_SMALL_EN_V15
+
+/* =========================================================================
+ * Sparse Embedding Models
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_SPARSE_SPLADE_PP_V1 = 0,     /* default */
+    LEMBED_SPARSE_BGE_M3,
+    LEMBED_SPARSE_MODEL_COUNT,
+} lembed_sparse_model_t;
+
+#define LEMBED_SPARSE_MODEL_DEFAULT LEMBED_SPARSE_SPLADE_PP_V1
+
+/* =========================================================================
+ * Image Embedding Models
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_IMAGE_CLIP_VIT_B32 = 0,       /* default */
+    LEMBED_IMAGE_RESNET50,
+    LEMBED_IMAGE_UNICOM_VIT_B16,
+    LEMBED_IMAGE_UNICOM_VIT_B32,
+    LEMBED_IMAGE_NOMIC_EMBED_VISION_V15,
+    LEMBED_IMAGE_MODEL_COUNT,
+} lembed_image_model_t;
+
+#define LEMBED_IMAGE_MODEL_DEFAULT LEMBED_IMAGE_CLIP_VIT_B32
+
+/* =========================================================================
+ * Reranker Models
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_RERANKER_BGE_BASE = 0,        /* default */
+    LEMBED_RERANKER_BGE_V2_M3,
+    LEMBED_RERANKER_JINA_V1_TURBO_EN,
+    LEMBED_RERANKER_JINA_V2_BASE_MULTILINGUAL,
+    LEMBED_RERANKER_MODEL_COUNT,
+} lembed_reranker_model_t;
+
+#define LEMBED_RERANKER_MODEL_DEFAULT LEMBED_RERANKER_BGE_BASE
+
+/* =========================================================================
+ * Model Info (returned by registry queries)
+ * ========================================================================= */
+
+typedef struct {
+    const char* model_name;       /* Human-readable name, e.g. "BAAI/bge-small-en-v1.5" */
+    const char* model_code;       /* HuggingFace repo, e.g. "Xenova/bge-small-en-v1.5" */
+    const char* model_file;       /* ONNX file path within repo */
+    const char* description;
+    int         dim;              /* Embedding dimension (0 for sparse/reranker) */
+    int         max_tokens;       /* Default max token length */
+    int         pooling;          /* lembed_pooling_t */
+    int         quantization;     /* lembed_quantization_t */
+} lembed_model_info_t;
+
+/* =========================================================================
+ * Opaque Handles
+ * ========================================================================= */
+
+typedef struct lembed_text_embedding    lembed_text_embedding_t;
+typedef struct lembed_sparse_embedding  lembed_sparse_embedding_ctx_t;
+typedef struct lembed_image_embedding   lembed_image_embedding_t;
+typedef struct lembed_reranker          lembed_reranker_t;
+
+/* =========================================================================
+ * Output Structures
+ * ========================================================================= */
+
+/* Dense embedding result (flat array: num_embeddings * dim) */
+typedef struct {
+    float*  data;
+    int     num_embeddings;
+    int     dim;
+} lembed_embeddings_t;
+
+/* Sparse embedding for a single text */
+typedef struct {
+    int32_t* indices;
+    float*   values;
+    int      length;
+} lembed_sparse_embedding_t;
+
+/* Batch of sparse embeddings */
+typedef struct {
+    lembed_sparse_embedding_t* items;
+    int count;
+} lembed_sparse_embeddings_t;
+
+/* Rerank result for a single document */
+typedef struct {
+    int   index;
+    float score;
+} lembed_rerank_result_t;
+
+/* Batch of rerank results */
+typedef struct {
+    lembed_rerank_result_t* items;
+    int count;
+} lembed_rerank_results_t;
+
+/* =========================================================================
+ * Init Options
+ * ========================================================================= */
+
+typedef struct {
+    lembed_text_model_t         model;
+    lembed_execution_provider_t provider;
+    int                         device_id;
+    const char*                 cache_dir;    /* NULL = default */
+    int                         max_length;   /* 0 = model default */
+    int                         num_threads;  /* 0 = auto */
+    int                         show_download_progress;
+} lembed_text_options_t;
+
+typedef struct {
+    lembed_sparse_model_t       model;
+    lembed_execution_provider_t provider;
+    int                         device_id;
+    const char*                 cache_dir;
+    int                         max_length;
+    int                         num_threads;
+    int                         show_download_progress;
+} lembed_sparse_options_t;
+
+typedef struct {
+    lembed_image_model_t        model;
+    lembed_execution_provider_t provider;
+    int                         device_id;
+    const char*                 cache_dir;
+    int                         num_threads;
+    int                         show_download_progress;
+} lembed_image_options_t;
+
+typedef struct {
+    lembed_reranker_model_t     model;
+    lembed_execution_provider_t provider;
+    int                         device_id;
+    const char*                 cache_dir;
+    int                         max_length;
+    int                         num_threads;
+    int                         show_download_progress;
+} lembed_reranker_options_t;
+
+/* User-defined model (bring-your-own ONNX) */
+typedef struct {
+    const unsigned char* onnx_data;
+    size_t               onnx_data_size;
+    const unsigned char* tokenizer_json;
+    size_t               tokenizer_json_size;
+    const unsigned char* config_json;       /* optional, may be NULL */
+    size_t               config_json_size;
+    lembed_pooling_t     pooling;
+    int                  dim;
+    int                  max_length;
+} lembed_user_defined_model_t;
+
+/* =========================================================================
+ * Memory Free Functions (forward declarations)
+ * ========================================================================= */
+
+void lembed_embeddings_free(lembed_embeddings_t* result);
+void lembed_sparse_embeddings_free(lembed_sparse_embeddings_t* result);
+void lembed_rerank_results_free(lembed_rerank_results_t* result);
+
+#ifdef __cplusplus
+}
+#endif
+
+/* ---- Implementation of defaults and free functions ---- */
+#ifdef LIBEMBEDDING_IMPLEMENTATION
+#ifndef LIBEMBEDDING_TYPES_IMPL
+#define LIBEMBEDDING_TYPES_IMPL
+
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+lembed_text_options_t lembed_text_options_default(void) {
+    lembed_text_options_t opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.model = LEMBED_TEXT_MODEL_DEFAULT;
+    opts.provider = LEMBED_PROVIDER_CPU;
+    opts.show_download_progress = 1;
+    return opts;
+}
+
+lembed_sparse_options_t lembed_sparse_options_default(void) {
+    lembed_sparse_options_t opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.model = LEMBED_SPARSE_MODEL_DEFAULT;
+    opts.provider = LEMBED_PROVIDER_CPU;
+    opts.show_download_progress = 1;
+    return opts;
+}
+
+lembed_image_options_t lembed_image_options_default(void) {
+    lembed_image_options_t opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.model = LEMBED_IMAGE_MODEL_DEFAULT;
+    opts.provider = LEMBED_PROVIDER_CPU;
+    opts.show_download_progress = 1;
+    return opts;
+}
+
+lembed_reranker_options_t lembed_reranker_options_default(void) {
+    lembed_reranker_options_t opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.model = LEMBED_RERANKER_MODEL_DEFAULT;
+    opts.provider = LEMBED_PROVIDER_CPU;
+    opts.show_download_progress = 1;
+    return opts;
+}
+
+void lembed_embeddings_free(lembed_embeddings_t* result) {
+    if (result) {
+        free(result->data);
+        result->data = NULL;
+        result->num_embeddings = 0;
+        result->dim = 0;
+    }
+}
+
+void lembed_sparse_embeddings_free(lembed_sparse_embeddings_t* result) {
+    if (result) {
+        for (int i = 0; i < result->count; i++) {
+            free(result->items[i].indices);
+            free(result->items[i].values);
+        }
+        free(result->items);
+        result->items = NULL;
+        result->count = 0;
+    }
+}
+
+void lembed_rerank_results_free(lembed_rerank_results_t* result) {
+    if (result) {
+        free(result->items);
+        result->items = NULL;
+        result->count = 0;
+    }
+}
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* LIBEMBEDDING_TYPES_IMPL */
+#endif /* LIBEMBEDDING_IMPLEMENTATION */
+
+#endif /* LIBEMBEDDING_TYPES_H */

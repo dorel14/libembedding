@@ -1,0 +1,193 @@
+/*
+ * libembedding - reranker.h
+ * Cross-encoder reranker C API
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#ifndef LIBEMBEDDING_RERANKER_H
+#define LIBEMBEDDING_RERANKER_H
+
+#include "types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+lembed_reranker_options_t lembed_reranker_options_default(void);
+
+lembed_status_t lembed_reranker_create(
+    const lembed_reranker_options_t* options,
+    lembed_reranker_t** out);
+
+/* Rerank documents against a query.
+ * Results are sorted by score descending. */
+lembed_status_t lembed_reranker_rerank(
+    lembed_reranker_t* ctx,
+    const char* query,
+    const char* const* documents,
+    int num_documents,
+    int batch_size,
+    lembed_rerank_results_t* result);
+
+void lembed_reranker_free(lembed_reranker_t* ctx);
+
+#ifdef __cplusplus
+}
+#endif
+
+/* ---- Implementation ---- */
+#ifdef LIBEMBEDDING_IMPLEMENTATION
+#ifndef LIBEMBEDDING_RERANKER_IMPL
+#define LIBEMBEDDING_RERANKER_IMPL
+
+#include "model_registry.h"
+#include "downloader.h"
+#include "detail/onnx_session_impl.hpp"
+#include "detail/tokenizer_impl.hpp"
+#include "detail/batch.hpp"
+
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <vector>
+
+struct lembed_reranker {
+    lembed::detail::OnnxSession session;
+    lembed::detail::TokenizerWrapper tokenizer;
+    int max_length;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+lembed_status_t lembed_reranker_create(
+        const lembed_reranker_options_t* options,
+        lembed_reranker_t** out) {
+    if (!options || !out) return LEMBED_ERROR_INVALID_ARGUMENT;
+
+    try {
+        lembed_model_info_t info;
+        lembed_status_t s = lembed_get_reranker_model_info(options->model, &info);
+        if (s != LEMBED_OK) return s;
+
+        char* model_dir_cstr = nullptr;
+        s = lembed_ensure_reranker_model(options->model, options->cache_dir,
+                                         options->show_download_progress, &model_dir_cstr);
+        if (s != LEMBED_OK) return s;
+        std::string model_dir(model_dir_cstr);
+        lembed_free_string(model_dir_cstr);
+
+        auto* ctx = new lembed_reranker();
+        ctx->max_length = (options->max_length > 0) ? options->max_length : info.max_tokens;
+
+        std::string onnx_path = model_dir + "/" + info.model_file;
+        ctx->session.load_from_file(onnx_path.c_str(),
+                                    options->num_threads,
+                                    (int)options->provider);
+
+        std::string tok_path = model_dir + "/tokenizer.json";
+        ctx->tokenizer.load_from_file(tok_path, ctx->max_length);
+
+        *out = ctx;
+        return LEMBED_OK;
+    } catch (const std::exception& e) {
+        lembed::detail::set_error(e.what());
+        return LEMBED_ERROR_ONNX_RUNTIME;
+    }
+}
+
+lembed_status_t lembed_reranker_rerank(
+        lembed_reranker_t* ctx,
+        const char* query,
+        const char* const* documents,
+        int num_documents,
+        int batch_size,
+        lembed_rerank_results_t* result) {
+    if (!ctx || !query || !documents || num_documents <= 0 || !result)
+        return LEMBED_ERROR_INVALID_ARGUMENT;
+
+    if (batch_size <= 0) batch_size = LEMBED_DEFAULT_BATCH_SIZE;
+
+    try {
+        /* Build query-document pairs as "[SEP]"-concatenated text.
+         * The tokenizer handles pair encoding via its configured template. */
+        std::vector<float> all_scores(num_documents);
+
+        int num_batches = lembed::detail::batch_count(num_documents, batch_size);
+        for (int bi = 0; bi < num_batches; bi++) {
+            auto range = lembed::detail::get_batch(bi, num_documents, batch_size);
+            int bsz = range.end - range.start;
+
+            /* Encode query-document pairs.
+             * For cross-encoders, we concatenate: query [SEP] document */
+            std::vector<std::string> pair_texts;
+            pair_texts.reserve(bsz);
+            for (int i = range.start; i < range.end; i++) {
+                pair_texts.push_back(std::string(query) + " [SEP] " + documents[i]);
+            }
+
+            auto enc = ctx->tokenizer.encode_batch(pair_texts);
+            int seq_len = enc.seq_length;
+
+            std::vector<int64_t> ids_flat(bsz * seq_len);
+            std::vector<int64_t> mask_flat(bsz * seq_len);
+            std::vector<int64_t> type_flat(bsz * seq_len, 0);
+
+            for (int i = 0; i < bsz; i++) {
+                for (int j = 0; j < seq_len; j++) {
+                    ids_flat[i * seq_len + j] = enc.input_ids[i][j];
+                    mask_flat[i * seq_len + j] = enc.attention_mask[i][j];
+                }
+            }
+
+            auto outputs = ctx->session.run(
+                ids_flat.data(), mask_flat.data(), type_flat.data(),
+                bsz, seq_len);
+
+            /* Extract logits[:, 0] as relevance scores */
+            auto& output = outputs[0];
+            for (int i = 0; i < bsz; i++) {
+                /* Logits shape is typically [batch, num_labels] or [batch, 1] */
+                all_scores[range.start + i] = output.data[i * ((int)output.shape.back())];
+            }
+        }
+
+        /* Build result array sorted by score descending */
+        result->count = num_documents;
+        result->items = (lembed_rerank_result_t*)malloc(
+            num_documents * sizeof(lembed_rerank_result_t));
+        if (!result->items) return LEMBED_ERROR_OUT_OF_MEMORY;
+
+        for (int i = 0; i < num_documents; i++) {
+            result->items[i].index = i;
+            result->items[i].score = all_scores[i];
+        }
+
+        /* Sort descending by score */
+        std::sort(result->items, result->items + num_documents,
+                  [](const lembed_rerank_result_t& a, const lembed_rerank_result_t& b) {
+                      return a.score > b.score;
+                  });
+
+        return LEMBED_OK;
+    } catch (const std::exception& e) {
+        lembed::detail::set_error(e.what());
+        return LEMBED_ERROR_ONNX_RUNTIME;
+    }
+}
+
+void lembed_reranker_free(lembed_reranker_t* ctx) {
+    delete ctx;
+}
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* LIBEMBEDDING_RERANKER_IMPL */
+#endif /* LIBEMBEDDING_IMPLEMENTATION */
+
+#endif /* LIBEMBEDDING_RERANKER_H */
