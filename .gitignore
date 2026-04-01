@@ -21,3 +21,19 @@ cmake-build-*/
 # Model cache
 libembedding_cache/
 .fastembed_cache/
+
+# Benchmark artifacts
+benchmarks/bench_fastembed_rs/target/
+benchmarks/results/
+
+# Python binding artifacts
+python/src/libembedding/*.dylib
+python/src/libembedding/*.so
+python/src/libembedding/*.dll
+python/*.egg-info/
+python/src/*.egg-info/
+python/dist/
+python/build/
+
+# Example venvs
+examples/python/.venv/

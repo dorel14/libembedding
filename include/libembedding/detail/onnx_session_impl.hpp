@@ -9,6 +9,9 @@
 #define LIBEMBEDDING_DETAIL_ONNX_SESSION_IMPL_HPP
 
 #include <onnxruntime_c_api.h>
+#if defined(__APPLE__)
+#include <coreml_provider_factory.h>
+#endif
 
 #include <cstdint>
 #include <cstdlib>
@@ -85,6 +88,8 @@ public:
         OrtSessionOptions* opts = nullptr;
 
         ort_check(api->CreateSessionOptions(&opts));
+        ort_check(api->EnableMemPattern(opts));
+        ort_check(api->EnableCpuMemArena(opts));
 
         /* Graph optimization level 3 (all optimizations) */
         ort_check(api->SetSessionGraphOptimizationLevel(opts, ORT_ENABLE_ALL));
@@ -92,7 +97,7 @@ public:
         /* Thread configuration */
         if (num_threads > 0) {
             ort_check(api->SetIntraOpNumThreads(opts, num_threads));
-            ort_check(api->SetInterOpNumThreads(opts, num_threads));
+            ort_check(api->SetInterOpNumThreads(opts, 1));
         }
 
         /* Execution provider */
@@ -113,11 +118,13 @@ public:
         OrtSessionOptions* opts = nullptr;
 
         ort_check(api->CreateSessionOptions(&opts));
+        ort_check(api->EnableMemPattern(opts));
+        ort_check(api->EnableCpuMemArena(opts));
         ort_check(api->SetSessionGraphOptimizationLevel(opts, ORT_ENABLE_ALL));
 
         if (num_threads > 0) {
             ort_check(api->SetIntraOpNumThreads(opts, num_threads));
-            ort_check(api->SetInterOpNumThreads(opts, num_threads));
+            ort_check(api->SetInterOpNumThreads(opts, 1));
         }
 
         configure_provider(api, opts, provider);
@@ -149,11 +156,14 @@ public:
         std::vector<int64_t> shape;
     };
 
-    /* Run with input_ids and attention_mask (and optionally token_type_ids) */
+    /* Run with input_ids and attention_mask (and optionally token_type_ids).
+     * If preferred_output >= 0, only that output tensor is requested from ORT,
+     * and the result vector will contain exactly one element at index 0. */
     std::vector<TensorResult> run(
             const int64_t* input_ids, const int64_t* attention_mask,
             const int64_t* token_type_ids, /* may be NULL */
-            int batch_size, int seq_length) {
+            int batch_size, int seq_length,
+            int preferred_output = -1) {
 
         const OrtApi* api = ort_api();
 
@@ -195,13 +205,17 @@ public:
             input_name_ptrs.push_back("token_type_ids");
         }
 
-        /* Output names */
+        /* Output names (request only the needed output if specified) */
         std::vector<const char*> output_name_ptrs;
-        for (const auto& n : output_names_) {
-            output_name_ptrs.push_back(n.c_str());
+        size_t num_outputs;
+        if (preferred_output >= 0 && preferred_output < (int)output_names_.size()) {
+            output_name_ptrs.push_back(output_names_[preferred_output].c_str());
+            num_outputs = 1;
+        } else {
+            for (const auto& n : output_names_)
+                output_name_ptrs.push_back(n.c_str());
+            num_outputs = output_names_.size();
         }
-
-        size_t num_outputs = output_names_.size();
         std::vector<OrtValue*> output_values(num_outputs, nullptr);
 
         /* Run inference */
@@ -386,6 +400,13 @@ private:
                 OrtCUDAProviderOptions cuda_opts;
                 memset(&cuda_opts, 0, sizeof(cuda_opts));
                 api->SessionOptionsAppendExecutionProvider_CUDA(opts, &cuda_opts);
+#endif
+                break;
+            }
+            case 2: { /* CoreML */
+#if defined(__APPLE__)
+                OrtStatus* s = OrtSessionOptionsAppendExecutionProvider_CoreML(opts, 0);
+                if (s) api->ReleaseStatus(s); /* fall back to CPU */
 #endif
                 break;
             }

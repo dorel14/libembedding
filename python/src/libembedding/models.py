@@ -1,0 +1,103 @@
+"""Model name resolution and registry queries."""
+
+from ._binding import ffi, lib
+from ._status import check_status
+from .types import ModelInfo
+from .exceptions import ModelNotFoundError
+
+_PROVIDER_MAP = {
+    "cpu": 0,
+    "cuda": 1,
+    "coreml": 2,
+    "directml": 3,
+    "tensorrt": 4,
+}
+
+_POOLING_NAMES = {0: "cls", 1: "mean"}
+_QUANTIZATION_NAMES = {0: "none", 1: "static", 2: "dynamic"}
+
+
+def _model_info_from_c(info) -> ModelInfo:
+    return ModelInfo(
+        model_name=ffi.string(info.model_name).decode(),
+        model_code=ffi.string(info.model_code).decode(),
+        model_file=ffi.string(info.model_file).decode(),
+        description=ffi.string(info.description).decode(),
+        dim=info.dim,
+        max_tokens=info.max_tokens,
+        pooling=_POOLING_NAMES.get(info.pooling, "unknown"),
+        quantization=_QUANTIZATION_NAMES.get(info.quantization, "unknown"),
+    )
+
+
+def resolve_text_model(model_name: str) -> int:
+    idx = lib.lembed_find_text_model_by_code(model_name.encode("utf-8"))
+    if idx >= 0:
+        return idx
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_text_models(models_ptr, count_ptr))
+    for i in range(count_ptr[0]):
+        if ffi.string(models_ptr[0][i].model_name).decode() == model_name:
+            return i
+    raise ModelNotFoundError(7, "Model not found", f"No text model matching '{model_name}'")
+
+
+def resolve_sparse_model(model_name: str) -> int:
+    idx = lib.lembed_find_sparse_model_by_code(model_name.encode("utf-8"))
+    if idx >= 0:
+        return idx
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_sparse_models(models_ptr, count_ptr))
+    for i in range(count_ptr[0]):
+        if ffi.string(models_ptr[0][i].model_name).decode() == model_name:
+            return i
+    raise ModelNotFoundError(7, "Model not found", f"No sparse model matching '{model_name}'")
+
+
+def resolve_image_model(model_name: str) -> int:
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_image_models(models_ptr, count_ptr))
+    for i in range(count_ptr[0]):
+        name = ffi.string(models_ptr[0][i].model_name).decode()
+        code = ffi.string(models_ptr[0][i].model_code).decode()
+        if model_name in (name, code):
+            return i
+    raise ModelNotFoundError(7, "Model not found", f"No image model matching '{model_name}'")
+
+
+def resolve_reranker_model(model_name: str) -> int:
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_reranker_models(models_ptr, count_ptr))
+    for i in range(count_ptr[0]):
+        name = ffi.string(models_ptr[0][i].model_name).decode()
+        code = ffi.string(models_ptr[0][i].model_code).decode()
+        if model_name in (name, code):
+            return i
+    raise ModelNotFoundError(7, "Model not found", f"No reranker model matching '{model_name}'")
+
+
+def _list_models(list_fn) -> list[ModelInfo]:
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(list_fn(models_ptr, count_ptr))
+    return [_model_info_from_c(models_ptr[0][i]) for i in range(count_ptr[0])]
+
+
+def list_text_models() -> list[ModelInfo]:
+    return _list_models(lib.lembed_list_text_models)
+
+
+def list_sparse_models() -> list[ModelInfo]:
+    return _list_models(lib.lembed_list_sparse_models)
+
+
+def list_image_models() -> list[ModelInfo]:
+    return _list_models(lib.lembed_list_image_models)
+
+
+def list_reranker_models() -> list[ModelInfo]:
+    return _list_models(lib.lembed_list_reranker_models)

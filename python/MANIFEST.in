@@ -1,0 +1,19 @@
+include README.md
+include LICENSE
+include pyproject.toml
+
+# C declarations for cffi
+include src/libembedding/_cdefs.h
+
+# Source files
+recursive-include src/libembedding *.py
+
+# Pre-built shared libraries (platform-specific, included in wheels)
+include src/libembedding/*.dylib
+include src/libembedding/*.so
+include src/libembedding/*.dll
+
+# Exclude build artifacts
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude *.pyo

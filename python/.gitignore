@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+src/*.egg-info/
+
+# Compiled shared libraries (bundled at build time, not committed)
+src/libembedding/*.dylib
+src/libembedding/*.so
+src/libembedding/*.dll
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store

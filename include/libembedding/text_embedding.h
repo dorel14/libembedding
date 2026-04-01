@@ -75,6 +75,12 @@ struct lembed_text_embedding {
     int dim;
     int max_length;
     std::string output_key; /* empty = use precedence */
+
+    /* Reusable per-batch buffers (avoids repeated allocation) */
+    std::vector<int64_t> ids_buf_;
+    std::vector<int64_t> mask_buf_;
+    std::vector<int64_t> type_buf_;
+    std::vector<float> pooled_buf_;
 };
 
 #ifdef __cplusplus
@@ -205,31 +211,32 @@ lembed_status_t lembed_text_embedding_embed(
 
             auto enc = ctx->tokenizer.encode_batch(batch_texts);
 
-            /* Flatten to contiguous arrays */
+            /* Flatten to contiguous arrays (reuse pre-allocated buffers) */
             int seq_len = enc.seq_length;
-            std::vector<int64_t> ids_flat(bsz * seq_len);
-            std::vector<int64_t> mask_flat(bsz * seq_len);
-            std::vector<int64_t> type_flat(bsz * seq_len, 0);
+            size_t flat_size = (size_t)bsz * seq_len;
+            ctx->ids_buf_.resize(flat_size);
+            ctx->mask_buf_.resize(flat_size);
+            ctx->type_buf_.assign(flat_size, 0);
 
             for (int i = 0; i < bsz; i++) {
                 for (int j = 0; j < seq_len; j++) {
-                    ids_flat[i * seq_len + j] = enc.input_ids[i][j];
-                    mask_flat[i * seq_len + j] = enc.attention_mask[i][j];
+                    ctx->ids_buf_[i * seq_len + j] = enc.input_ids[i][j];
+                    ctx->mask_buf_[i * seq_len + j] = enc.attention_mask[i][j];
                     if ((int)enc.token_type_ids[i].size() > j)
-                        type_flat[i * seq_len + j] = enc.token_type_ids[i][j];
+                        ctx->type_buf_[i * seq_len + j] = enc.token_type_ids[i][j];
                 }
             }
 
-            /* Run ONNX */
-            auto outputs = ctx->session.run(
-                ids_flat.data(), mask_flat.data(), type_flat.data(),
-                bsz, seq_len);
-
-            /* Select output tensor */
+            /* Select output tensor index before run */
             int oi = ctx->output_key.empty()
                 ? ctx->session.select_output()
                 : ctx->session.select_output(ctx->output_key.c_str());
-            auto& output = outputs[oi];
+
+            /* Run ONNX (request only the needed output) */
+            auto outputs = ctx->session.run(
+                ctx->ids_buf_.data(), ctx->mask_buf_.data(), ctx->type_buf_.data(),
+                bsz, seq_len, oi);
+            auto& output = outputs[0];
 
             /* Determine tensor dimensions */
             int ndim = (int)output.shape.size();
@@ -238,22 +245,22 @@ lembed_status_t lembed_text_embedding_embed(
             int out_dim = (ndim >= 3) ? (int)output.shape[2] :
                           (ndim == 2) ? (int)output.shape[1] : dim;
 
-            /* Pooling */
-            std::vector<float> pooled(bsz * out_dim);
+            /* Pooling (reuse pre-allocated buffer) */
+            ctx->pooled_buf_.resize((size_t)bsz * out_dim);
             if (ctx->pooling == LEMBED_POOLING_CLS) {
                 lembed::detail::pool_cls(output.data.data(),
-                    out_batch, out_seq, out_dim, ndim, pooled.data());
+                    out_batch, out_seq, out_dim, ndim, ctx->pooled_buf_.data());
             } else {
-                lembed::detail::pool_mean(output.data.data(), mask_flat.data(),
-                    out_batch, out_seq, out_dim, ndim, pooled.data());
+                lembed::detail::pool_mean(output.data.data(), ctx->mask_buf_.data(),
+                    out_batch, out_seq, out_dim, ndim, ctx->pooled_buf_.data());
             }
 
             /* L2 normalize */
-            lembed::detail::l2_normalize(pooled.data(), bsz, out_dim);
+            lembed::detail::l2_normalize(ctx->pooled_buf_.data(), bsz, out_dim);
 
             /* Copy to output */
             std::memcpy(result->data + out_offset * dim,
-                       pooled.data(), (size_t)bsz * dim * sizeof(float));
+                       ctx->pooled_buf_.data(), (size_t)bsz * dim * sizeof(float));
             out_offset += bsz;
         }
 

@@ -17,6 +17,8 @@ option(LIBEMBEDDING_NO_DOWNLOAD   "Disable model downloading (offline only)"  OF
 option(LIBEMBEDDING_NO_IMAGE      "Disable image embedding support"           OFF)
 option(LIBEMBEDDING_BUILD_TESTS   "Build tests"                               ON)
 option(LIBEMBEDDING_BUILD_EXAMPLES "Build examples"                           ON)
+option(LIBEMBEDDING_BUILD_BENCHMARKS "Build benchmarks"                       OFF)
+option(LIBEMBEDDING_BUILD_SHARED    "Build shared library for bindings"       OFF)
 
 # =========================================================================
 # Dependencies
@@ -114,6 +116,32 @@ endif()
 # =========================================================================
 if(LIBEMBEDDING_BUILD_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+# =========================================================================
+# Benchmarks
+# =========================================================================
+if(LIBEMBEDDING_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
+
+# =========================================================================
+# Shared library (for Python/FFI bindings)
+# =========================================================================
+if(LIBEMBEDDING_BUILD_SHARED)
+    add_library(embedding_shared SHARED python/csrc/libembedding_shlib.cpp)
+    target_link_libraries(embedding_shared PRIVATE libembedding)
+    set_target_properties(embedding_shared PROPERTIES
+        OUTPUT_NAME "embedding"
+        C_VISIBILITY_PRESET default
+        CXX_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF
+    )
+    if(APPLE)
+        set_target_properties(embedding_shared PROPERTIES INSTALL_RPATH "@loader_path")
+    elseif(UNIX)
+        set_target_properties(embedding_shared PROPERTIES INSTALL_RPATH "$ORIGIN")
+    endif()
 endif()
 
 # =========================================================================

@@ -288,6 +288,8 @@ private:
     Type type_;
     bool do_lower_case_;
     bool add_special_tokens_;
+    mutable std::string wp_scratch_;
+    mutable std::string bpe_scratch_;
 
     /* Encode a single text to token IDs */
     std::vector<int> encode_single(const std::string& text) const {
@@ -346,10 +348,11 @@ private:
             size_t end = word.size();
             bool found = false;
             while (end > start) {
-                std::string substr = word.substr(start, end - start);
-                if (start > 0) substr = wp_prefix_ + substr;
+                wp_scratch_.clear();
+                if (start > 0) wp_scratch_.append(wp_prefix_);
+                wp_scratch_.append(word, start, end - start);
 
-                auto vit = vocab_.find(substr);
+                auto vit = vocab_.find(wp_scratch_);
                 if (vit != vocab_.end()) {
                     ids.push_back(vit->second);
                     found = true;
@@ -389,8 +392,11 @@ private:
             int best_pos = -1;
 
             for (int i = 0; i < (int)symbols.size() - 1; i++) {
-                std::string pair = symbols[i] + " " + symbols[i + 1];
-                auto it = bpe_ranks_.find(pair);
+                bpe_scratch_.clear();
+                bpe_scratch_.append(symbols[i]);
+                bpe_scratch_.push_back(' ');
+                bpe_scratch_.append(symbols[i + 1]);
+                auto it = bpe_ranks_.find(bpe_scratch_);
                 if (it != bpe_ranks_.end() && it->second < best_rank) {
                     best_rank = it->second;
                     best_pos = i;

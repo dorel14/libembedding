@@ -1,0 +1,2 @@
+add_executable(bench_libembedding bench_libembedding.cpp)
+target_link_libraries(bench_libembedding PRIVATE libembedding)
