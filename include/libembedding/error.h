@@ -4,6 +4,16 @@
  *
  * SPDX-License-Identifier: MIT
  */
+#if defined(_WIN32) || defined(WIN32)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
+#if defined(__cplusplus)
+#define LEMBED_TLS thread_local
+#else
+#define LEMBED_TLS _Thread_local
+#endif
 
 #ifndef LIBEMBEDDING_ERROR_H
 #define LIBEMBEDDING_ERROR_H
@@ -46,7 +56,7 @@ const char* lembed_last_error(void);
 extern "C" {
 #endif
 
-static _Thread_local char lembed__error_buf[1024] = {0};
+static LEMBED_TLS char lembed__error_buf[1024] = {0};
 
 const char* lembed_status_message(lembed_status_t status) {
     switch (status) {

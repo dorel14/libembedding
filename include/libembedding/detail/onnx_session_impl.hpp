@@ -103,7 +103,15 @@ public:
         /* Execution provider */
         configure_provider(api, opts, provider);
 
-        ort_check(api->CreateSession(ort_env(), model_path, opts, &session_));
+        #if defined(_WIN32) || defined(WIN32)
+            // Conversion du chemin char* (UTF-8) vers wchar_t* (UTF-16) pour l'API Windows
+            std::string path_str(model_path);
+            std::wstring path_w(path_str.begin(), path_str.end());
+            ort_check(api->CreateSession(ort_env(), path_w.c_str(), opts, &session_));
+        #else
+        // Code d'origine pour Linux / macOS
+            ort_check(api->CreateSession(ort_env(), model_path, opts, &session_));
+        #endif
         api->ReleaseSessionOptions(opts);
 
         ort_check(api->GetAllocatorWithDefaultOptions(&allocator_));

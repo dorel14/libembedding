@@ -15,6 +15,12 @@
 
 #include "cJSON.h"
 
+#if defined(_WIN32) || defined(WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#endif
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>

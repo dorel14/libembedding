@@ -5,6 +5,12 @@
  * SPDX-License-Identifier: MIT
  */
 
+#if defined(_WIN32) || defined(WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#endif
+
 #ifndef LIBEMBEDDING_DETAIL_BATCH_HPP
 #define LIBEMBEDDING_DETAIL_BATCH_HPP
 

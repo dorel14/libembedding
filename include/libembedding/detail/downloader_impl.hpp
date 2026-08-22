@@ -12,6 +12,14 @@
 
 #include <curl/curl.h>
 
+// Correction pour le support de S_ISREG sous Windows (MSVC)
+#if defined(_WIN32) || defined(WIN32)
+#include <sys/stat.h>
+#if !defined(S_ISREG) && defined(_S_IFREG)
+#define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
+#endif
+#endif
+
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>

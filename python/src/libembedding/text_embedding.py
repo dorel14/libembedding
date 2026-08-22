@@ -6,7 +6,7 @@ import numpy as np
 
 from ._binding import ffi, lib
 from ._status import check_status
-from .models import resolve_text_model, _PROVIDER_MAP
+from .models import resolve_text_model, list_text_models, _PROVIDER_MAP
 
 
 class TextEmbedding:
@@ -47,6 +47,11 @@ class TextEmbedding:
         check_status(lib.lembed_text_embedding_create(ffi.addressof(opts), ctx_ptr))
         self._ctx = ffi.gc(ctx_ptr[0], lib.lembed_text_embedding_free)
         self._dim = lib.lembed_text_embedding_dim(self._ctx)
+
+    @staticmethod
+    def list_supported_models():
+        """Return a list of all supported text embedding models."""
+        return list_text_models()
 
     @property
     def dim(self) -> int:

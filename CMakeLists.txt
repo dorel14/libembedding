@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
+cmake_policy(SET CMP0144 NEW)
 project(libembedding
     VERSION 0.1.0
     DESCRIPTION "C header-only embedding library using ONNX Runtime"
@@ -9,6 +10,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_SUPPRESS_UNUSED_CLI_VARIABLES ON)
+
+if(WIN32)
+    add_compile_definitions(NOMINMAX)
+endif()
 
 # =========================================================================
 # Options
@@ -23,6 +29,32 @@ option(LIBEMBEDDING_BUILD_SHARED    "Build shared library for bindings"       OF
 # =========================================================================
 # Dependencies
 # =========================================================================
+
+if(WIN32)
+    # Définition des dossiers
+    set(ONNXRuntime_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include")
+    set(ONNXRuntime_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib/onnxruntime.lib")
+    include_directories(${ONNXRuntime_INCLUDE_DIR})
+    
+    set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/curl/include")
+    set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/curl/lib/libcurl.dll.a")
+    include_directories(${CURL_INCLUDE_DIR})
+
+    # 🟢 AJOUT CRUCIAL : Créer la cible manquante attendue par les tests et exemples
+    if(NOT TARGET ONNXRuntime::ONNXRuntime)
+        add_library(ONNXRuntime::ONNXRuntime UNKNOWN IMPORTED)
+        set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES
+            IMPORTED_LOCATION "${ONNXRuntime_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${ONNXRuntime_INCLUDE_DIR}"
+        )
+    endif()
+
+    # Désactiver globalement les macros min/max conflictuelles de Windows
+    add_compile_definitions(NOMINMAX)
+else()
+    find_package(ONNXRuntime REQUIRED)
+    find_package(CURL REQUIRED)
+endif()
 
 # ONNX Runtime (required)
 # Try the official cmake config first (ships with Homebrew, vcpkg, etc.)
@@ -72,35 +104,83 @@ if(NOT LIBEMBEDDING_NO_DOWNLOAD)
     find_package(CURL REQUIRED)
 endif()
 
+
+
 # =========================================================================
-# Main library target (header-only = INTERFACE)
+# Main library target (Forcé en DLL SHARED pour Windows/Python cffi)
 # =========================================================================
-add_library(libembedding INTERFACE)
+if(WIN32)
+    # On crée une vraie DLL. Si un fichier cpp d'implémentation existe (ex: src/libembedding.cpp), 
+    # ajoutez-le ici à la place de ""
+    add_library(libembedding SHARED "${CMAKE_CURRENT_SOURCE_DIR}/python/csrc/libembedding_shlib.cpp")
+
+    set_target_properties(libembedding PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    
+    # On force CMake à accepter une bibliothèque partagée sans fichiers sources initiaux 
+    # car elle va lier ONNXRuntime et CURL
+    set_target_properties(libembedding PROPERTIES LINKER_LANGUAGE CXX)
+else()
+    # On laisse la configuration d'origine pour Linux / macOS
+    add_library(libembedding INTERFACE)
+endif()
+
 add_library(libembedding::libembedding ALIAS libembedding)
 
-target_include_directories(libembedding INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
-    $<INSTALL_INTERFACE:include>
-)
+# =========================================================================
+# Configuration des Inclusions et Liaisons (Adaptée Windows/DLL)
+# =========================================================================
+if(WIN32)
+    # Mode DLL (SHARED) pour Windows
+    target_include_directories(libembedding PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
+        $<INSTALL_INTERFACE:include>
+    )
 
-target_link_libraries(libembedding INTERFACE
-    ONNXRuntime::ONNXRuntime
-    cjson
-)
+    target_link_libraries(libembedding PUBLIC
+        ONNXRuntime::ONNXRuntime
+        cjson
+    )
 
-if(NOT LIBEMBEDDING_NO_IMAGE)
-    target_link_libraries(libembedding INTERFACE stb)
-endif()
+    if(NOT LIBEMBEDDING_NO_IMAGE)
+        target_link_libraries(libembedding PUBLIC stb)
+    endif()
 
-if(NOT LIBEMBEDDING_NO_DOWNLOAD)
-    target_link_libraries(libembedding INTERFACE CURL::libcurl)
+    if(NOT LIBEMBEDDING_NO_DOWNLOAD)
+        target_link_libraries(libembedding PUBLIC ${CURL_LIBRARY})
+    else()
+        target_compile_definitions(libembedding PUBLIC LIBEMBEDDING_NO_DOWNLOAD)
+    endif()
+
+    if(LIBEMBEDDING_NO_IMAGE)
+        target_compile_definitions(libembedding PUBLIC LIBEMBEDDING_NO_IMAGE)
+    endif()
 else()
-    target_compile_definitions(libembedding INTERFACE LIBEMBEDDING_NO_DOWNLOAD)
-endif()
+    # Mode d'origine (INTERFACE) pour Linux / macOS
+    target_include_directories(libembedding INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
+        $<INSTALL_INTERFACE:include>
+    )
 
-if(LIBEMBEDDING_NO_IMAGE)
-    target_compile_definitions(libembedding INTERFACE LIBEMBEDDING_NO_IMAGE)
+    target_link_libraries(libembedding INTERFACE
+        ONNXRuntime::ONNXRuntime
+        cjson
+    )
+
+    if(NOT LIBEMBEDDING_NO_IMAGE)
+        target_link_libraries(libembedding INTERFACE stb)
+    endif()
+
+    if(NOT LIBEMBEDDING_NO_DOWNLOAD)
+        target_link_libraries(libembedding INTERFACE CURL::libcurl)
+    else()
+        target_compile_definitions(libembedding INTERFACE LIBEMBEDDING_NO_DOWNLOAD)
+    endif()
+
+    if(LIBEMBEDDING_NO_IMAGE)
+        target_compile_definitions(libembedding INTERFACE LIBEMBEDDING_NO_IMAGE)
+    endif()
 endif()
 
 # =========================================================================
