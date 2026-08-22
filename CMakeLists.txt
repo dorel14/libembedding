@@ -31,13 +31,22 @@ option(LIBEMBEDDING_BUILD_SHARED    "Build shared library for bindings"       OF
 # =========================================================================
 
 if(WIN32)
-    # Définition des dossiers
-    set(ONNXRuntime_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include")
-    set(ONNXRuntime_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib/onnxruntime.lib")
+    # Allow overriding bundled third_party paths via cache variables
+    # (e.g. for CI builds using vcpkg instead of MinGW .dll.a)
+    if(NOT ONNXRuntime_INCLUDE_DIR)
+        set(ONNXRuntime_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include")
+    endif()
+    if(NOT ONNXRuntime_LIBRARY)
+        set(ONNXRuntime_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib/onnxruntime.lib")
+    endif()
     include_directories(${ONNXRuntime_INCLUDE_DIR})
-    
-    set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/curl/include")
-    set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/curl/lib/libcurl.dll.a")
+
+    if(NOT CURL_INCLUDE_DIR)
+        set(CURL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/curl/include")
+    endif()
+    if(NOT CURL_LIBRARY)
+        set(CURL_LIBRARY "${CMAKE_CURRENT_SOURCE_DIR}/third_party/curl/lib/libcurl.dll.a")
+    endif()
     include_directories(${CURL_INCLUDE_DIR})
 
     # 🟢 AJOUT CRUCIAL : Créer la cible manquante attendue par les tests et exemples

@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "libembedding"
+name = "libembedding-ng"
 version = "0.1.1"
 description = "Fast ONNX-based text, image, and sparse embeddings for Python. 5-8x faster than fastembed."
 readme = "README.md"

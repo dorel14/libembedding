@@ -66,10 +66,19 @@ jobs:
           # vcpkg toolchain so CMake's find_package(CURL) works
           echo "CMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
 
+          # Override bundled MinGW curl with vcpkg's MSVC-compatible curl
+          echo "CURL_INCLUDE_DIR=C:\vcpkg\installed\x64-windows\include" >> $env:GITHUB_ENV
+          echo "CURL_LIBRARY=C:\vcpkg\installed\x64-windows\lib\libcurl.lib" >> $env:GITHUB_ENV
+
+          # vcpkg bin dir (for copying DLLs into the wheel)
+          echo "VCPKG_BIN=C:\vcpkg\installed\x64-windows\bin" >> $env:GITHUB_ENV
+
       # ── Build the C++ shared library ─────────────────────────────
       - name: Build shared library
         env:
           ONNXRUNTIME_ROOT: ${{ env.ONNXRUNTIME_ROOT }}
+          CURL_INCLUDE_DIR: ${{ env.CURL_INCLUDE_DIR }}
+          CURL_LIBRARY: ${{ env.CURL_LIBRARY }}
         run: |
           mkdir -p build
           cd build
@@ -79,7 +88,9 @@ jobs:
             -DLIBEMBEDDING_BUILD_TESTS=OFF \
             -DLIBEMBEDDING_BUILD_EXAMPLES=OFF \
             -DLIBEMBEDDING_BUILD_BENCHMARKS=OFF \
-            -DOONXRUNTIME_ROOT="$ONNXRUNTIME_ROOT"
+            -DOONXRUNTIME_ROOT="$ONNXRUNTIME_ROOT" \
+            -DCURL_INCLUDE_DIR="$CURL_INCLUDE_DIR" \
+            -DCURL_LIBRARY="$CURL_LIBRARY"
           cmake --build . --parallel --target embedding_shared --config Release
 
       # ── Copy shared library into the Python package ──────────────
@@ -106,6 +117,13 @@ jobs:
           # Vendor onnxruntime DLLs into the wheel so the package is self-contained
           Copy-Item "${{ env.ONNXRUNTIME_ROOT }}\lib\onnxruntime.dll" python/src/libembedding/ -Force
           Copy-Item "${{ env.ONNXRUNTIME_ROOT }}\lib\onnxruntime_providers_shared.dll" python/src/libembedding/ -Force
+
+          # Vendor ALL third-party DLLs from vcpkg (curl + dependencies like zlib, ssl, etc.)
+          # This ensures the wheel is self-contained regardless of curl's dependency tree
+          Get-ChildItem "${{ env.VCPKG_BIN }}" -Filter "*.dll" | ForEach-Object {
+            Copy-Item $_.FullName python/src/libembedding/ -Force
+            Write-Host "Vendored: $($_.Name)"
+          }
 
           Get-ChildItem python/src/libembedding/
 
