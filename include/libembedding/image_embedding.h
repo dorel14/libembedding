@@ -50,6 +50,9 @@ const lembed_model_desc_t* lembed_image_embedding_desc(const lembed_image_embedd
 const char* lembed_image_embedding_model_name(const lembed_image_embedding_t* ctx);
 int lembed_image_embedding_max_length(const lembed_image_embedding_t* ctx);
 
+/* Runtime statistics */
+void lembed_image_embedding_stats(const lembed_image_embedding_t* ctx, lembed_stats_t* out);
+
 void lembed_image_embedding_free(lembed_image_embedding_t* ctx);
 
 #ifdef __cplusplus
@@ -74,6 +77,7 @@ void lembed_image_embedding_free(lembed_image_embedding_t* ctx);
 #include <cstring>
 #include <string>
 #include <vector>
+#include <chrono>
 
 struct lembed_image_embedding {
     lembed::detail::OnnxSession session;
@@ -87,6 +91,12 @@ struct lembed_image_embedding {
     lembed_execution_provider_t provider;
     int device_id;
     lembed_model_desc_t desc;
+
+    /* Stats counters */
+    uint64_t texts_embedded = 0;
+    uint64_t batches_run = 0;
+    double   total_latency_ms = 0.0;
+    int      stats_calls = 0;
 };
 
 #ifdef __cplusplus
@@ -219,6 +229,7 @@ lembed_status_t lembed_image_embedding_embed_files(
         result->data = (float*)malloc((size_t)num_images * dim * sizeof(float));
         if (!result->data) return LEMBED_ERROR_OUT_OF_MEMORY;
 
+        auto t_start = std::chrono::high_resolution_clock::now();
         int out_offset = 0;
         int num_batches = lembed::detail::batch_count(num_images, batch_size);
 
@@ -288,6 +299,7 @@ lembed_status_t lembed_image_embedding_embed_bytes(
         result->data = (float*)malloc((size_t)num_images * dim * sizeof(float));
         if (!result->data) return LEMBED_ERROR_OUT_OF_MEMORY;
 
+        auto t_start = std::chrono::high_resolution_clock::now();
         int out_offset = 0;
         int num_batches = lembed::detail::batch_count(num_images, batch_size);
 
@@ -323,6 +335,13 @@ lembed_status_t lembed_image_embedding_embed_bytes(
             out_offset += bsz;
         }
 
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double elapsed_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+        ctx->texts_embedded += num_images;
+        ctx->batches_run += num_batches;
+        ctx->total_latency_ms += elapsed_ms;
+        ctx->stats_calls++;
+
         return LEMBED_OK;
     } catch (const std::exception& e) {
         lembed::detail::set_error(e.what());
@@ -345,6 +364,16 @@ const char* lembed_image_embedding_model_name(const lembed_image_embedding_t* ct
 
 int lembed_image_embedding_max_length(const lembed_image_embedding_t* ctx) {
     return 0; /* N/A for image models */
+}
+
+void lembed_image_embedding_stats(const lembed_image_embedding_t* ctx, lembed_stats_t* out) {
+    if (!out) return;
+    if (!ctx) { memset(out, 0, sizeof(*out)); return; }
+    out->texts_embedded = ctx->texts_embedded;
+    out->batches_run = ctx->batches_run;
+    out->avg_latency_ms = ctx->stats_calls > 0
+        ? ctx->total_latency_ms / (double)ctx->stats_calls
+        : 0.0;
 }
 
 void lembed_image_embedding_free(lembed_image_embedding_t* ctx) {

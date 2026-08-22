@@ -16,6 +16,11 @@ add_executable(test_pooling test_pooling.cpp)
 target_link_libraries(test_pooling PRIVATE libembedding)
 add_test(NAME test_pooling COMMAND test_pooling)
 
+# Test similarity functions (no download required)
+add_executable(test_similarity test_similarity.cpp)
+target_link_libraries(test_similarity PRIVATE libembedding)
+add_test(NAME test_similarity COMMAND test_similarity)
+
 # Test local loading (no network required — tests error paths)
 add_executable(test_local_loading test_local_loading.cpp)
 target_link_libraries(test_local_loading PRIVATE libembedding)
@@ -24,9 +29,13 @@ target_link_libraries(test_local_loading PRIVATE libembedding)
 target_compile_definitions(test_local_loading PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
 add_test(NAME test_local_loading COMMAND test_local_loading)
 
-# On Windows, copy runtime DLLs (onnxruntime) next to test executables
+# On Windows, copy runtime DLLs (onnxruntime, libcurl) next to test executables
 if(WIN32)
-    copy_runtime_dlls(test_local_loading)
+    foreach(_t test_model_registry test_pooling test_similarity test_local_loading)
+        if(TARGET ${_t})
+            copy_runtime_dlls(${_t})
+        endif()
+    endforeach()
 endif()
 
 # =========================================================================

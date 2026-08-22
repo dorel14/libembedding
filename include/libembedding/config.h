@@ -26,4 +26,32 @@
 #define LEMBED_DEFAULT_MAX_LENGTH    512
 #define LEMBED_DEFAULT_CACHE_SUBDIR  "libembedding_cache"
 
+/* Version string accessor (C API stable) */
+#ifdef __cplusplus
+extern "C" {
+#endif
+const char* lembed_version(void);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef LIBEMBEDDING_IMPLEMENTATION
+#ifndef LIBEMBEDDING_VERSION_IMPL
+#define LIBEMBEDDING_VERSION_IMPL
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+const char* lembed_version(void) {
+    return LIBEMBEDDING_VERSION_STRING;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* LIBEMBEDDING_VERSION_IMPL */
+#endif /* LIBEMBEDDING_IMPLEMENTATION */
+
 #endif /* LIBEMBEDDING_CONFIG_H */

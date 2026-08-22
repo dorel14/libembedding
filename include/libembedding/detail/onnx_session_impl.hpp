@@ -418,6 +418,23 @@ private:
 #endif
                 break;
             }
+            case 3: { /* DirectML (Windows only, requires onnxruntime-dml) */
+#if defined(_WIN32) || defined(WIN32)
+#ifdef USE_DML
+                OrtStatus* s = OrtSessionOptionsAppendExecutionProvider_Dml(opts, 0);
+                if (s) api->ReleaseStatus(s); /* fall back to CPU */
+#endif
+#endif
+                break;
+            }
+            case 4: { /* TensorRT */
+#ifdef USE_TENSORRT
+                OrtTensorRTProviderOptions trt_opts;
+                memset(&trt_opts, 0, sizeof(trt_opts));
+                api->SessionOptionsAppendExecutionProvider_TensorRT(opts, &trt_opts);
+#endif
+                break;
+            }
             default:
                 break;
         }

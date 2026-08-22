@@ -144,6 +144,12 @@ public:
         return ctx_ ? lembed_reranker_max_length(ctx_) : 0;
     }
 
+    lembed_stats_t stats() const {
+        lembed_stats_t s{};
+        if (ctx_) lembed_reranker_stats(ctx_, &s);
+        return s;
+    }
+
     void close() {
         if (ctx_) {
             lembed_reranker_free(ctx_);

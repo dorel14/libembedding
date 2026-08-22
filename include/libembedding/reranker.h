@@ -41,6 +41,9 @@ const lembed_model_desc_t* lembed_reranker_desc(const lembed_reranker_t* ctx);
 const char* lembed_reranker_model_name(const lembed_reranker_t* ctx);
 int lembed_reranker_max_length(const lembed_reranker_t* ctx);
 
+/* Runtime statistics */
+void lembed_reranker_stats(const lembed_reranker_t* ctx, lembed_stats_t* out);
+
 void lembed_reranker_free(lembed_reranker_t* ctx);
 
 #ifdef __cplusplus
@@ -63,6 +66,7 @@ void lembed_reranker_free(lembed_reranker_t* ctx);
 #include <cstring>
 #include <string>
 #include <vector>
+#include <chrono>
 
 struct lembed_reranker {
     lembed::detail::OnnxSession session;
@@ -76,6 +80,12 @@ struct lembed_reranker {
     lembed_execution_provider_t provider;
     int device_id;
     lembed_model_desc_t desc;
+
+    /* Stats counters */
+    uint64_t texts_embedded = 0;
+    uint64_t batches_run = 0;
+    double   total_latency_ms = 0.0;
+    int      stats_calls = 0;
 };
 
 #ifdef __cplusplus
@@ -204,6 +214,8 @@ lembed_status_t lembed_reranker_rerank(
     if (batch_size <= 0) batch_size = ctx->batch_size;
 
     try {
+        auto t_start = std::chrono::high_resolution_clock::now();
+
         /* Build query-document pairs as "[SEP]"-concatenated text.
          * The tokenizer handles pair encoding via its configured template. */
         std::vector<float> all_scores(num_documents);
@@ -264,6 +276,13 @@ lembed_status_t lembed_reranker_rerank(
                       return a.score > b.score;
                   });
 
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double elapsed_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+        ctx->texts_embedded += num_documents;
+        ctx->batches_run += num_batches;
+        ctx->total_latency_ms += elapsed_ms;
+        ctx->stats_calls++;
+
         return LEMBED_OK;
     } catch (const std::exception& e) {
         lembed::detail::set_error(e.what());
@@ -281,6 +300,16 @@ const char* lembed_reranker_model_name(const lembed_reranker_t* ctx) {
 
 int lembed_reranker_max_length(const lembed_reranker_t* ctx) {
     return ctx ? ctx->max_length : 0;
+}
+
+void lembed_reranker_stats(const lembed_reranker_t* ctx, lembed_stats_t* out) {
+    if (!out) return;
+    if (!ctx) { memset(out, 0, sizeof(*out)); return; }
+    out->texts_embedded = ctx->texts_embedded;
+    out->batches_run = ctx->batches_run;
+    out->avg_latency_ms = ctx->stats_calls > 0
+        ? ctx->total_latency_ms / (double)ctx->stats_calls
+        : 0.0;
 }
 
 void lembed_reranker_free(lembed_reranker_t* ctx) {

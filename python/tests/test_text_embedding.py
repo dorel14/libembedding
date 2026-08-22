@@ -127,3 +127,40 @@ def test_text_embedding_offline_missing_model():
     # BGE large is not used by other tests, so likely not cached
     with pytest.raises(LembedError):
         TextEmbedding("BAAI/bge-large-en-v1.5", offline=True)
+
+
+def test_text_embedding_stats():
+    from libembedding import TextEmbedding
+
+    with TextEmbedding("BAAI/bge-small-en-v1.5", show_download_progress=False) as model:
+        model.embed(["Hello world", "Test sentence"])
+        stats = model.stats()
+        assert stats.texts_embedded == 2
+        assert stats.batches_run >= 1
+        assert stats.avg_latency_ms > 0
+
+
+def test_text_embedding_max_length():
+    from libembedding import TextEmbedding
+
+    with TextEmbedding("BAAI/bge-small-en-v1.5", show_download_progress=False) as model:
+        assert model.info().max_length > 0
+
+
+def test_similarity_functions():
+    from libembedding import cosine_similarity, dot_product, euclidean_distance
+
+    a = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+    b = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+
+    # Identical vectors
+    assert abs(cosine_similarity(a, b) - 1.0) < 1e-5
+    assert abs(dot_product(a, b) - 14.0) < 1e-5
+    assert abs(euclidean_distance(a, b) - 0.0) < 1e-5
+
+    # Orthogonal vectors
+    c = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    d = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    assert abs(cosine_similarity(c, d) - 0.0) < 1e-5
+    assert abs(dot_product(c, d) - 0.0) < 1e-5
+    assert abs(euclidean_distance(c, d) - 1.41421) < 1e-4

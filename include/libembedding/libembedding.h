@@ -29,5 +29,6 @@
 #endif
 
 #include "reranker.h"
+#include "similarity.h"
 
 #endif /* LIBEMBEDDING_H */

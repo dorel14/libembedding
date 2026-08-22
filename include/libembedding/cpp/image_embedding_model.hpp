@@ -134,6 +134,12 @@ public:
         return n ? std::string(n) : "";
     }
 
+    lembed_stats_t stats() const {
+        lembed_stats_t s{};
+        if (ctx_) lembed_image_embedding_stats(ctx_, &s);
+        return s;
+    }
+
     void close() {
         if (ctx_) {
             lembed_image_embedding_free(ctx_);

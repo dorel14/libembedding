@@ -135,6 +135,12 @@ public:
         return ctx_ ? lembed_sparse_text_embedding_max_length(ctx_) : 0;
     }
 
+    lembed_stats_t stats() const {
+        lembed_stats_t s{};
+        if (ctx_) lembed_sparse_text_embedding_stats(ctx_, &s);
+        return s;
+    }
+
     void close() {
         if (ctx_) {
             lembed_sparse_text_embedding_free(ctx_);

@@ -46,3 +46,12 @@ class ModelDesc:
     batch_size: int
     provider: str
     device_id: int
+
+
+@dataclass(frozen=True)
+class Stats:
+    """Runtime statistics for an embedding context."""
+
+    texts_embedded: int
+    batches_run: int
+    avg_latency_ms: float

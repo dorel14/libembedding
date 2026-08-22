@@ -176,6 +176,16 @@ typedef struct {
 } lembed_model_desc_t;
 
 /* =========================================================================
+ * Runtime Statistics
+ * Returned by lembed_*_stats() to expose usage counters for a context.
+ * ========================================================================= */
+typedef struct {
+    uint64_t texts_embedded;    /* total texts processed since context creation */
+    uint64_t batches_run;       /* total ONNX inference batches executed */
+    double   avg_latency_ms;    /* average wall-clock time per embed() call (ms) */
+} lembed_stats_t;
+
+/* =========================================================================
  * Opaque Handles
  * ========================================================================= */
 

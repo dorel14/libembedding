@@ -39,6 +39,18 @@ lembed_status_t lembed_text_embedding_embed(
     int batch_size,
     lembed_embeddings_t* result);
 
+/* Embed texts as a stream. Calls `callback` once per text with a pointer to
+ * a dim-sized float array. batch_size=0 means use the context's configured
+ * batch_size. Allows processing large numbers of texts without allocating
+ * a single result buffer. */
+lembed_status_t lembed_text_embedding_embed_stream(
+    lembed_text_embedding_t* ctx,
+    const char* const* texts,
+    int num_texts,
+    int batch_size,
+    void (*callback)(const float* embedding, int dim, void* userdata),
+    void* userdata);
+
 /* Get embedding dimension */
 int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx);
 
@@ -46,6 +58,9 @@ int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx);
 const lembed_model_desc_t* lembed_text_embedding_desc(const lembed_text_embedding_t* ctx);
 const char* lembed_text_embedding_model_name(const lembed_text_embedding_t* ctx);
 int lembed_text_embedding_max_length(const lembed_text_embedding_t* ctx);
+
+/* Runtime statistics */
+void lembed_text_embedding_stats(const lembed_text_embedding_t* ctx, lembed_stats_t* out);
 
 /* Destroy context */
 void lembed_text_embedding_free(lembed_text_embedding_t* ctx);
@@ -71,6 +86,7 @@ void lembed_text_embedding_free(lembed_text_embedding_t* ctx);
 #include <cstring>
 #include <string>
 #include <vector>
+#include <chrono>
 
 /* Internal struct definition */
 struct lembed_text_embedding {
@@ -89,6 +105,12 @@ struct lembed_text_embedding {
     lembed_execution_provider_t provider;
     int device_id;
     lembed_model_desc_t desc; /* desc.name points to model_name_str.c_str() */
+
+    /* Stats counters */
+    uint64_t texts_embedded = 0;
+    uint64_t batches_run = 0;
+    double   total_latency_ms = 0.0;
+    int      stats_calls = 0;
 
     /* Reusable per-batch buffers (avoids repeated allocation) */
     std::vector<int64_t> ids_buf_;
@@ -311,6 +333,8 @@ lembed_status_t lembed_text_embedding_embed(
         result->data = (float*)malloc((size_t)num_texts * dim * sizeof(float));
         if (!result->data) return LEMBED_ERROR_OUT_OF_MEMORY;
 
+        auto t_start = std::chrono::high_resolution_clock::now();
+
         int out_offset = 0;
 
         int num_batches = lembed::detail::batch_count(num_texts, batch_size);
@@ -380,6 +404,13 @@ lembed_status_t lembed_text_embedding_embed(
             out_offset += bsz;
         }
 
+        auto t_end = std::chrono::high_resolution_clock::now();
+        double elapsed_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+        ctx->texts_embedded += num_texts;
+        ctx->batches_run += num_batches;
+        ctx->total_latency_ms += elapsed_ms;
+        ctx->stats_calls++;
+
         return LEMBED_OK;
     } catch (const std::exception& e) {
         lembed::detail::set_error(e.what());
@@ -392,6 +423,89 @@ int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx) {
     return ctx ? ctx->dim : 0;
 }
 
+lembed_status_t lembed_text_embedding_embed_stream(
+        lembed_text_embedding_t* ctx,
+        const char* const* texts,
+        int num_texts,
+        int batch_size,
+        void (*callback)(const float* embedding, int dim, void* userdata),
+        void* userdata) {
+    if (!ctx || !texts || num_texts <= 0 || !callback)
+        return LEMBED_ERROR_INVALID_ARGUMENT;
+
+    if (batch_size <= 0) batch_size = ctx->batch_size;
+
+    try {
+        int dim = ctx->dim;
+        int num_batches = lembed::detail::batch_count(num_texts, batch_size);
+
+        for (int bi = 0; bi < num_batches; bi++) {
+            auto range = lembed::detail::get_batch(bi, num_texts, batch_size);
+            int bsz = range.end - range.start;
+
+            std::vector<std::string> batch_texts;
+            batch_texts.reserve(bsz);
+            for (int i = range.start; i < range.end; i++) {
+                batch_texts.push_back(texts[i]);
+            }
+
+            auto enc = ctx->tokenizer.encode_batch(batch_texts);
+            int seq_len = enc.seq_length;
+            size_t flat_size = (size_t)bsz * seq_len;
+            ctx->ids_buf_.resize(flat_size);
+            ctx->mask_buf_.resize(flat_size);
+            ctx->type_buf_.assign(flat_size, 0);
+
+            for (int i = 0; i < bsz; i++) {
+                for (int j = 0; j < seq_len; j++) {
+                    ctx->ids_buf_[i * seq_len + j] = enc.input_ids[i][j];
+                    ctx->mask_buf_[i * seq_len + j] = enc.attention_mask[i][j];
+                    if ((int)enc.token_type_ids[i].size() > j)
+                        ctx->type_buf_[i * seq_len + j] = enc.token_type_ids[i][j];
+                }
+            }
+
+            int oi = ctx->output_key.empty()
+                ? ctx->session.select_output()
+                : ctx->session.select_output(ctx->output_key.c_str());
+
+            auto outputs = ctx->session.run(
+                ctx->ids_buf_.data(), ctx->mask_buf_.data(), ctx->type_buf_.data(),
+                bsz, seq_len, oi);
+
+            auto& output = outputs[0];
+            int ndim = (int)output.shape.size();
+            int out_batch = (int)output.shape[0];
+            int out_seq = (ndim >= 3) ? (int)output.shape[1] : 0;
+            int out_dim = (ndim >= 3) ? (int)output.shape[2] :
+                        (ndim == 2) ? (int)output.shape[1] : dim;
+
+            ctx->pooled_buf_.resize((size_t)bsz * out_dim);
+            if (ctx->pooling == LEMBED_POOLING_CLS) {
+                lembed::detail::pool_cls(output.data.data(),
+                    out_batch, out_seq, out_dim, ndim, ctx->pooled_buf_.data());
+            } else {
+                lembed::detail::pool_mean(output.data.data(), ctx->mask_buf_.data(),
+                    out_batch, out_seq, out_dim, ndim, ctx->pooled_buf_.data());
+            }
+
+            lembed::detail::l2_normalize(ctx->pooled_buf_.data(), bsz, out_dim);
+
+            /* Call callback for each embedding in the batch */
+            for (int i = 0; i < bsz; i++) {
+                callback(ctx->pooled_buf_.data() + (size_t)i * out_dim, dim, userdata);
+            }
+        }
+
+        ctx->texts_embedded += num_texts;
+        ctx->batches_run += num_batches;
+        return LEMBED_OK;
+    } catch (const std::exception& e) {
+        lembed::detail::set_error(e.what());
+        return LEMBED_ERROR_ONNX_RUNTIME;
+    }
+}
+
 const lembed_model_desc_t* lembed_text_embedding_desc(const lembed_text_embedding_t* ctx) {
     return ctx ? &ctx->desc : nullptr;
 }
@@ -402,6 +516,19 @@ const char* lembed_text_embedding_model_name(const lembed_text_embedding_t* ctx)
 
 int lembed_text_embedding_max_length(const lembed_text_embedding_t* ctx) {
     return ctx ? ctx->max_length : 0;
+}
+
+void lembed_text_embedding_stats(const lembed_text_embedding_t* ctx, lembed_stats_t* out) {
+    if (!out) return;
+    if (!ctx) {
+        memset(out, 0, sizeof(*out));
+        return;
+    }
+    out->texts_embedded = ctx->texts_embedded;
+    out->batches_run = ctx->batches_run;
+    out->avg_latency_ms = ctx->stats_calls > 0
+        ? ctx->total_latency_ms / (double)ctx->stats_calls
+        : 0.0;
 }
 
 void lembed_text_embedding_free(lembed_text_embedding_t* ctx) {

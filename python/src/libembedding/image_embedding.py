@@ -15,7 +15,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import ModelDesc
+from .types import ModelDesc, Stats
 from .exceptions import ModelNotFoundError
 
 
@@ -175,6 +175,16 @@ class ImageEmbedding:
             return arr.reshape(result.num_embeddings, result.dim)
         finally:
             lib.lembed_embeddings_free(result)
+
+    def stats(self) -> Stats:
+        """Return runtime usage statistics."""
+        s = ffi.new("lembed_stats_t *")
+        lib.lembed_image_embedding_stats(self._ctx, s)
+        return Stats(
+            texts_embedded=s.texts_embedded,
+            batches_run=s.batches_run,
+            avg_latency_ms=s.avg_latency_ms,
+        )
 
     def close(self) -> None:
         """Release the underlying C resources."""

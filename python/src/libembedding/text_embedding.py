@@ -16,7 +16,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import ModelDesc
+from .types import ModelDesc, Stats
 from .exceptions import ModelNotFoundError
 
 
@@ -122,6 +122,16 @@ class TextEmbedding:
         name_ptr = lib.lembed_text_embedding_model_name(self._ctx)
         return ffi.string(name_ptr).decode("utf-8", errors="replace") if name_ptr else ""
 
+    def stats(self) -> Stats:
+        """Return runtime usage statistics."""
+        s = ffi.new("lembed_stats_t *")
+        lib.lembed_text_embedding_stats(self._ctx, s)
+        return Stats(
+            texts_embedded=s.texts_embedded,
+            batches_run=s.batches_run,
+            avg_latency_ms=s.avg_latency_ms,
+        )
+
     def embed(self, texts: list[str], *, batch_size: int | None = None) -> np.ndarray:
         """Embed texts into dense vectors.
 
@@ -153,6 +163,34 @@ class TextEmbedding:
             return arr.reshape(result.num_embeddings, result.dim)
         finally:
             lib.lembed_embeddings_free(result)
+
+    def embed_stream(self, texts: list[str], *, batch_size: int | None = None):
+        """Embed texts as a generator, yielding one embedding at a time.
+
+        Processes in batches internally but yields each embedding individually,
+        avoiding large memory allocation for large document sets.
+
+        Args:
+            texts: List of text strings to embed.
+            batch_size: Internal batch size (None = use constructor default).
+
+        Yields:
+            numpy array of shape (dim,) with dtype float32.
+        """
+        n = len(texts)
+        if n == 0:
+            return
+
+        bs = 0 if batch_size is None else batch_size
+        actual_bs = bs if bs > 0 else self._batch_size
+        if actual_bs <= 0:
+            actual_bs = 32
+
+        for i in range(0, n, actual_bs):
+            batch = texts[i:i + actual_bs]
+            embeddings = self.embed(batch, batch_size=actual_bs)
+            for emb in embeddings:
+                yield emb
 
     def close(self) -> None:
         """Release the underlying C resources."""

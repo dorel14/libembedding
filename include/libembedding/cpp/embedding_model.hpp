@@ -138,6 +138,29 @@ public:
         return ctx_ ? lembed_text_embedding_max_length(ctx_) : 0;
     }
 
+    lembed_stats_t stats() const {
+        lembed_stats_t s{};
+        if (ctx_) lembed_text_embedding_stats(ctx_, &s);
+        return s;
+    }
+
+    template <typename Callback>
+    void embed_stream(const std::vector<std::string>& texts,
+                      int batch_size,
+                      Callback callback) {
+        if (texts.empty()) return;
+        int bs = (batch_size <= 0) ? ctx_->batch_size : batch_size;
+        check_or_throw(lembed_text_embedding_embed_stream(
+            ctx_,
+            reinterpret_cast<const char* const*>(texts.data()),
+            (int)texts.size(), bs,
+            [](const float* emb, int dim, void* userdata) {
+                Callback* cb = static_cast<Callback*>(userdata);
+                (*cb)(emb, dim);
+            },
+             &callback));
+    }
+
     void close() {
         if (ctx_) {
             lembed_text_embedding_free(ctx_);

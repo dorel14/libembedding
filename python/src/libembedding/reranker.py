@@ -13,7 +13,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import RerankResult, ModelDesc
+from .types import RerankResult, ModelDesc, Stats
 from .exceptions import ModelNotFoundError
 
 
@@ -136,6 +136,16 @@ class Reranker:
         """Model name or local path."""
         name_ptr = lib.lembed_reranker_model_name(self._ctx)
         return ffi.string(name_ptr).decode("utf-8", errors="replace") if name_ptr else ""
+
+    def stats(self) -> Stats:
+        """Return runtime usage statistics."""
+        s = ffi.new("lembed_stats_t *")
+        lib.lembed_reranker_stats(self._ctx, s)
+        return Stats(
+            texts_embedded=s.texts_embedded,
+            batches_run=s.batches_run,
+            avg_latency_ms=s.avg_latency_ms,
+        )
 
     def close(self) -> None:
         self._ctx = None

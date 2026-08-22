@@ -18,6 +18,7 @@ typedef enum {
 
 const char* lembed_status_message(lembed_status_t status);
 const char* lembed_last_error(void);
+const char* lembed_version(void);
 
 /* ── Enums ──────────────────────────────────────────────────────── */
 
@@ -135,6 +136,12 @@ typedef struct {
     int                        device_id;
 } lembed_model_desc_t;
 
+typedef struct {
+    unsigned long long texts_embedded;
+    unsigned long long batches_run;
+    double avg_latency_ms;
+} lembed_stats_t;
+
 typedef struct lembed_text_embedding    lembed_text_embedding_t;
 typedef struct lembed_sparse_embedding  lembed_sparse_embedding_ctx_t;
 typedef struct lembed_image_embedding   lembed_image_embedding_t;
@@ -242,10 +249,12 @@ lembed_status_t lembed_text_embedding_create(const lembed_text_options_t* option
 lembed_status_t lembed_text_embedding_create_custom(const lembed_user_defined_model_t* model, lembed_execution_provider_t provider, int num_threads, lembed_text_embedding_t** out);
 lembed_status_t lembed_text_embedding_create_from_path(const char* dir_path, const lembed_text_options_t* options, lembed_text_embedding_t** out);
 lembed_status_t lembed_text_embedding_embed(lembed_text_embedding_t* ctx, const char* const* texts, int num_texts, int batch_size, lembed_embeddings_t* result);
+lembed_status_t lembed_text_embedding_embed_stream(lembed_text_embedding_t* ctx, const char* const* texts, int num_texts, int batch_size, void (*callback)(const float* embedding, int dim, void* userdata), void* userdata);
 int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx);
 const lembed_model_desc_t* lembed_text_embedding_desc(const lembed_text_embedding_t* ctx);
 const char* lembed_text_embedding_model_name(const lembed_text_embedding_t* ctx);
 int lembed_text_embedding_max_length(const lembed_text_embedding_t* ctx);
+void lembed_text_embedding_stats(const lembed_text_embedding_t* ctx, lembed_stats_t* out);
 void lembed_text_embedding_free(lembed_text_embedding_t* ctx);
 
 /* Sparse text embedding */
@@ -255,6 +264,7 @@ lembed_status_t lembed_sparse_text_embedding_embed(lembed_sparse_embedding_ctx_t
 const lembed_model_desc_t* lembed_sparse_text_embedding_desc(const lembed_sparse_embedding_ctx_t* ctx);
 const char* lembed_sparse_text_embedding_model_name(const lembed_sparse_embedding_ctx_t* ctx);
 int lembed_sparse_text_embedding_max_length(const lembed_sparse_embedding_ctx_t* ctx);
+void lembed_sparse_text_embedding_stats(const lembed_sparse_embedding_ctx_t* ctx, lembed_stats_t* out);
 void lembed_sparse_text_embedding_free(lembed_sparse_embedding_ctx_t* ctx);
 
 /* Image embedding */
@@ -266,6 +276,7 @@ int lembed_image_embedding_dim(const lembed_image_embedding_t* ctx);
 const lembed_model_desc_t* lembed_image_embedding_desc(const lembed_image_embedding_t* ctx);
 const char* lembed_image_embedding_model_name(const lembed_image_embedding_t* ctx);
 int lembed_image_embedding_max_length(const lembed_image_embedding_t* ctx);
+void lembed_image_embedding_stats(const lembed_image_embedding_t* ctx, lembed_stats_t* out);
 void lembed_image_embedding_free(lembed_image_embedding_t* ctx);
 
 /* Reranker */
@@ -275,6 +286,7 @@ lembed_status_t lembed_reranker_rerank(lembed_reranker_t* ctx, const char* query
 const lembed_model_desc_t* lembed_reranker_desc(const lembed_reranker_t* ctx);
 const char* lembed_reranker_model_name(const lembed_reranker_t* ctx);
 int lembed_reranker_max_length(const lembed_reranker_t* ctx);
+void lembed_reranker_stats(const lembed_reranker_t* ctx, lembed_stats_t* out);
 void lembed_reranker_free(lembed_reranker_t* ctx);
 
 /* Model registry */
@@ -295,6 +307,11 @@ lembed_status_t lembed_ensure_sparse_model(lembed_sparse_model_t model, const ch
 lembed_status_t lembed_ensure_image_model(lembed_image_model_t model, const char* cache_dir, int show_progress, int offline, char** model_dir_out);
 lembed_status_t lembed_ensure_reranker_model(lembed_reranker_model_t model, const char* cache_dir, int show_progress, int offline, char** model_dir_out);
 void lembed_free_string(char* s);
+
+/* Similarity */
+float lembed_cosine_similarity(const float* a, const float* b, int dim);
+float lembed_dot_product(const float* a, const float* b, int dim);
+float lembed_euclidean_distance(const float* a, const float* b, int dim);
 
 /* Memory free */
 void lembed_embeddings_free(lembed_embeddings_t* result);
