@@ -32,3 +32,17 @@ class ModelInfo:
     max_tokens: int
     pooling: str  # "cls" or "mean"
     quantization: str  # "none", "static", "dynamic"
+
+
+@dataclass(frozen=True)
+class ModelDesc:
+    """Runtime descriptor of a created model context."""
+
+    name: str
+    dimension: int
+    max_length: int
+    pooling: str  # "cls" or "mean"
+    num_threads: int
+    batch_size: int
+    provider: str
+    device_id: int

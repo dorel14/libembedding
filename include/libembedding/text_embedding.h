@@ -9,6 +9,7 @@
 #define LIBEMBEDDING_TEXT_EMBEDDING_H
 
 #include "types.h"
+#include "model_loader.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +31,7 @@ lembed_status_t lembed_text_embedding_create_custom(
     lembed_text_embedding_t** out);
 
 /* Embed texts. Result is a flat float array [num_texts * dim].
- * batch_size=0 means use default (256). */
+ * batch_size=0 means use the context's configured batch_size. */
 lembed_status_t lembed_text_embedding_embed(
     lembed_text_embedding_t* ctx,
     const char* const* texts,
@@ -40,6 +41,11 @@ lembed_status_t lembed_text_embedding_embed(
 
 /* Get embedding dimension */
 int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx);
+
+/* Introspection: runtime model descriptor */
+const lembed_model_desc_t* lembed_text_embedding_desc(const lembed_text_embedding_t* ctx);
+const char* lembed_text_embedding_model_name(const lembed_text_embedding_t* ctx);
+int lembed_text_embedding_max_length(const lembed_text_embedding_t* ctx);
 
 /* Destroy context */
 void lembed_text_embedding_free(lembed_text_embedding_t* ctx);
@@ -76,6 +82,14 @@ struct lembed_text_embedding {
     int max_length;
     std::string output_key; /* empty = use precedence */
 
+    /* Runtime metadata for introspection */
+    std::string model_name_str;
+    int num_threads;
+    int batch_size;
+    lembed_execution_provider_t provider;
+    int device_id;
+    lembed_model_desc_t desc; /* desc.name points to model_name_str.c_str() */
+
     /* Reusable per-batch buffers (avoids repeated allocation) */
     std::vector<int64_t> ids_buf_;
     std::vector<int64_t> mask_buf_;
@@ -86,6 +100,19 @@ struct lembed_text_embedding {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Helper: populate the cached desc struct on a context */
+static void lembed__text_update_desc(lembed_text_embedding_t* ctx) {
+    if (!ctx) return;
+    ctx->desc.name = ctx->model_name_str.c_str();
+    ctx->desc.dimension = ctx->dim;
+    ctx->desc.max_length = ctx->max_length;
+    ctx->desc.pooling = ctx->pooling;
+    ctx->desc.num_threads = ctx->num_threads;
+    ctx->desc.batch_size = ctx->batch_size;
+    ctx->desc.provider = ctx->provider;
+    ctx->desc.device_id = ctx->device_id;
+}
 
 lembed_status_t lembed_text_embedding_create(
         const lembed_text_options_t* options,
@@ -98,10 +125,11 @@ lembed_status_t lembed_text_embedding_create(
         lembed_status_t s = lembed_get_text_model_info(options->model, &info);
         if (s != LEMBED_OK) return s;
 
-        /* Ensure model files are downloaded */
+        /* Ensure model files are downloaded (offline flag skips download) */
         char* model_dir_cstr = nullptr;
         s = lembed_ensure_text_model(options->model, options->cache_dir,
-                                     options->show_download_progress, &model_dir_cstr);
+                                     options->show_download_progress,
+                                     options->offline, &model_dir_cstr);
         if (s != LEMBED_OK) return s;
         std::string model_dir(model_dir_cstr);
         lembed_free_string(model_dir_cstr);
@@ -112,6 +140,12 @@ lembed_status_t lembed_text_embedding_create(
         ctx->quantization = (lembed_quantization_t)info.quantization;
         ctx->dim = info.dim;
         ctx->max_length = (options->max_length > 0) ? options->max_length : info.max_tokens;
+        ctx->model_name_str = info.model_name;
+        ctx->num_threads = options->num_threads;
+        ctx->batch_size = (options->batch_size > 0) ? options->batch_size
+                                                     : LEMBED_DEFAULT_BATCH_SIZE;
+        ctx->provider = options->provider;
+        ctx->device_id = options->device_id;
 
         /* Special output key for EmbeddingGemma */
         if (options->model == LEMBED_TEXT_EMBEDDING_GEMMA_300M) {
@@ -128,6 +162,7 @@ lembed_status_t lembed_text_embedding_create(
         std::string tok_path = model_dir + "/tokenizer.json";
         ctx->tokenizer.load_from_file(tok_path, ctx->max_length);
 
+        lembed__text_update_desc(ctx);
         *out = ctx;
         return LEMBED_OK;
     } catch (const std::exception& e) {
@@ -150,6 +185,11 @@ lembed_status_t lembed_text_embedding_create_custom(
         ctx->quantization = LEMBED_QUANTIZATION_NONE;
         ctx->dim = model->dim;
         ctx->max_length = (model->max_length > 0) ? model->max_length : LEMBED_DEFAULT_MAX_LENGTH;
+        ctx->model_name_str = "custom-model";
+        ctx->num_threads = num_threads;
+        ctx->batch_size = LEMBED_DEFAULT_BATCH_SIZE;
+        ctx->provider = provider;
+        ctx->device_id = 0;
 
         /* Load ONNX from memory */
         ctx->session.load_from_memory(model->onnx_data, model->onnx_data_size,
@@ -159,11 +199,87 @@ lembed_status_t lembed_text_embedding_create_custom(
         std::string tok_blob((const char*)model->tokenizer_json, model->tokenizer_json_size);
         ctx->tokenizer.load_from_blob(tok_blob, ctx->max_length);
 
+        lembed__text_update_desc(ctx);
         *out = ctx;
         return LEMBED_OK;
     } catch (const std::exception& e) {
         lembed::detail::set_error(e.what());
         return LEMBED_ERROR_ONNX_RUNTIME;
+    }
+}
+
+lembed_status_t lembed_text_embedding_create_from_path(
+        const char* dir_path,
+        const lembed_text_options_t* options,
+        lembed_text_embedding_t** out) {
+    if (!dir_path || !dir_path[0] || !options || !out) return LEMBED_ERROR_INVALID_ARGUMENT;
+
+    try {
+        /* Read model.onnx */
+        std::string onnx_path = std::string(dir_path) + "/model.onnx";
+        std::string onnx_data = lembed::detail::read_file_to_string(onnx_path);
+
+        /* Read tokenizer.json */
+        std::string tok_path = std::string(dir_path) + "/tokenizer.json";
+        std::string tok_data = lembed::detail::read_file_to_string(tok_path);
+
+        /* Read config.json (optional) */
+        std::string config_path = std::string(dir_path) + "/config.json";
+        std::string config_data;
+        bool has_config = lembed::detail::file_exists(config_path);
+        if (has_config) {
+            config_data = lembed::detail::read_file_to_string(config_path);
+        }
+
+        /* Resolve dim, max_length, pooling */
+        lembed_user_defined_model_t udm;
+        memset(&udm, 0, sizeof(udm));
+        udm.onnx_data = (const unsigned char*)onnx_data.data();
+        udm.onnx_data_size = onnx_data.size();
+        udm.tokenizer_json = (const unsigned char*)tok_data.data();
+        udm.tokenizer_json_size = tok_data.size();
+
+        int dim = 0;
+        int max_length = 0;
+        lembed_pooling_t pooling = LEMBED_POOLING_MEAN;
+
+        if (has_config) {
+            lembed::detail::parse_config_json(config_data, &dim, &max_length);
+            pooling = lembed::detail::infer_pooling_from_path(dir_path);
+        }
+
+        /* Fallback to options */
+        if (dim == 0) dim = options->dim;
+        if (max_length == 0) max_length = options->max_length;
+        if (options->pooling == LEMBED_POOLING_CLS) pooling = LEMBED_POOLING_CLS;
+
+        if (dim == 0) {
+            lembed::detail::set_error(
+                "Cannot determine model dimension: no config.json found and "
+                "options.dim not set");
+            return LEMBED_ERROR_INVALID_ARGUMENT;
+        }
+
+        udm.dim = dim;
+        udm.pooling = pooling;
+        udm.max_length = max_length;
+
+        /* Create via custom (loads from memory) */
+        lembed_text_embedding_t* ctx = nullptr;
+        lembed_status_t s = lembed_text_embedding_create_custom(
+            &udm, options->provider, options->num_threads, &ctx);
+        if (s != LEMBED_OK) return s;
+
+        /* Override name and batch_size for local path */
+        ctx->model_name_str = dir_path;
+        ctx->batch_size = (options->batch_size > 0) ? options->batch_size
+                                                     : LEMBED_DEFAULT_BATCH_SIZE;
+        lembed__text_update_desc(ctx);
+        *out = ctx;
+        return LEMBED_OK;
+    } catch (const std::exception& e) {
+        lembed::detail::set_error(e.what());
+        return LEMBED_ERROR_IO;
     }
 }
 
@@ -186,7 +302,7 @@ lembed_status_t lembed_text_embedding_embed(
         batch_size = num_texts;
     }
 
-    if (batch_size <= 0) batch_size = LEMBED_DEFAULT_BATCH_SIZE;
+    if (batch_size <= 0) batch_size = ctx->batch_size;
 
     try {
         int dim = ctx->dim;
@@ -243,7 +359,7 @@ lembed_status_t lembed_text_embedding_embed(
             int out_batch = (int)output.shape[0];
             int out_seq = (ndim >= 3) ? (int)output.shape[1] : 0;
             int out_dim = (ndim >= 3) ? (int)output.shape[2] :
-                          (ndim == 2) ? (int)output.shape[1] : dim;
+                        (ndim == 2) ? (int)output.shape[1] : dim;
 
             /* Pooling (reuse pre-allocated buffer) */
             ctx->pooled_buf_.resize((size_t)bsz * out_dim);
@@ -274,6 +390,18 @@ lembed_status_t lembed_text_embedding_embed(
 
 int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx) {
     return ctx ? ctx->dim : 0;
+}
+
+const lembed_model_desc_t* lembed_text_embedding_desc(const lembed_text_embedding_t* ctx) {
+    return ctx ? &ctx->desc : nullptr;
+}
+
+const char* lembed_text_embedding_model_name(const lembed_text_embedding_t* ctx) {
+    return ctx ? ctx->model_name_str.c_str() : nullptr;
+}
+
+int lembed_text_embedding_max_length(const lembed_text_embedding_t* ctx) {
+    return ctx ? ctx->max_length : 0;
 }
 
 void lembed_text_embedding_free(lembed_text_embedding_t* ctx) {

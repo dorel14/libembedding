@@ -113,6 +113,16 @@ int main(void) {
         ASSERT(opts.model == LEMBED_TEXT_MODEL_DEFAULT, "default text model");
         ASSERT(opts.provider == LEMBED_PROVIDER_CPU, "default provider CPU");
         ASSERT(opts.show_download_progress == 1, "default show progress");
+        ASSERT(opts.batch_size == LEMBED_DEFAULT_BATCH_SIZE, "default batch_size 256");
+        ASSERT(opts.offline == 0, "default offline false");
+        ASSERT(opts.pooling == LEMBED_POOLING_MEAN, "default pooling MEAN");
+    }
+
+    /* Test: model_desc_t is available */
+    {
+        lembed_model_desc_t desc;
+        memset(&desc, 0, sizeof(desc));
+        ASSERT(sizeof(desc) > 0, "model_desc_t is non-empty");
     }
 
     /* Test: error messages */

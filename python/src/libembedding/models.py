@@ -2,8 +2,9 @@
 
 from ._binding import ffi, lib
 from ._status import check_status
-from .types import ModelInfo
+from .types import ModelInfo, ModelDesc
 from .exceptions import ModelNotFoundError
+import os
 
 _PROVIDER_MAP = {
     "cpu": 0,
@@ -13,7 +14,11 @@ _PROVIDER_MAP = {
     "tensorrt": 4,
 }
 
+_PROVIDER_NAMES = {v: k for k, v in _PROVIDER_MAP.items()}
+
 _POOLING_NAMES = {0: "cls", 1: "mean"}
+_POOLING_ENUM = {v: k for k, v in _POOLING_NAMES.items()}
+
 _QUANTIZATION_NAMES = {0: "none", 1: "static", 2: "dynamic"}
 
 
@@ -101,3 +106,23 @@ def list_image_models() -> list[ModelInfo]:
 
 def list_reranker_models() -> list[ModelInfo]:
     return _list_models(lib.lembed_list_reranker_models)
+
+
+def _desc_from_c(desc_ptr) -> ModelDesc:
+    """Convert a C lembed_model_desc_t pointer to ModelDesc."""
+    name = ffi.string(desc_ptr.name).decode("utf-8", errors="replace") if desc_ptr.name else ""
+    return ModelDesc(
+        name=name,
+        dimension=desc_ptr.dimension,
+        max_length=desc_ptr.max_length,
+        pooling=_POOLING_NAMES.get(desc_ptr.pooling, "unknown"),
+        num_threads=desc_ptr.num_threads,
+        batch_size=desc_ptr.batch_size,
+        provider=_PROVIDER_NAMES.get(desc_ptr.provider, "unknown"),
+        device_id=desc_ptr.device_id,
+    )
+
+
+def _is_local_path(model_name: str) -> bool:
+    """True if the given string looks like an existing local directory path."""
+    return os.path.exists(model_name)

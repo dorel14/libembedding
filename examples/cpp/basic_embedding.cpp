@@ -32,6 +32,7 @@ int main(void) {
 
     /* Create embedder with defaults (BGE-small-en-v1.5, 384-dim, CPU) */
     lembed_text_options_t opts = lembed_text_options_default();
+    opts.batch_size = 32;
     lembed_text_embedding_t* embedder = NULL;
 
     printf("Loading model: %s\n", models[opts.model].model_name);
@@ -42,7 +43,10 @@ int main(void) {
         return 1;
     }
 
-    printf("Model loaded! Dimension: %d\n\n", lembed_text_embedding_dim(embedder));
+    /* Print model info via introspection */
+    const lembed_model_desc_t* desc = lembed_text_embedding_desc(embedder);
+    printf("Model loaded! Dimension: %d, batch_size: %d\n\n",
+           lembed_text_embedding_dim(embedder), desc ? desc->batch_size : 0);
 
     /* Embed some texts */
     const char* texts[] = {

@@ -90,6 +90,20 @@ inline bool file_exists(const std::string& path) {
     return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
 }
 
+/* Read an entire file into a string. Throws std::runtime_error on failure. */
+inline std::string read_file_to_string(const std::string& path) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) throw std::runtime_error("Cannot open file: " + path);
+    std::string blob;
+    char buf[65536];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        blob.append(buf, n);
+    }
+    fclose(f);
+    return blob;
+}
+
 /* curl write callback */
 static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
     FILE* fp = (FILE*)userp;
@@ -173,15 +187,17 @@ inline bool download_hf_file(const std::string& repo, const std::string& filenam
  *
  * repo_code:        HF repo, e.g. "Xenova/bge-small-en-v1.5"
  * model_file:       main ONNX file, e.g. "onnx/model.onnx"
- * additional_files:  additional files to download (NULL-terminated)
+ * additional_files: additional files to download (NULL-terminated)
  * cache_dir:        base cache directory
  * show_progress:    whether to show download progress
+ * offline:          if true, skip download attempts and only use cache
  */
 inline std::string ensure_model(const std::string& repo_code,
-                                 const std::string& model_file,
-                                 const char* const* additional_files,
-                                 const std::string& cache_dir,
-                                 bool show_progress) {
+                                const std::string& model_file,
+                                const char* const* additional_files,
+                                const std::string& cache_dir,
+                                bool show_progress,
+                                bool offline = false) {
     /* Build model directory: cache_dir/models--repo_with_dashes/ */
     std::string repo_dir = repo_code;
     for (auto& c : repo_dir) { if (c == '/') c = '-'; if (c == '-') c = '-'; }
@@ -220,6 +236,18 @@ inline std::string ensure_model(const std::string& repo_code,
         std::string dest = model_dir + "/" + f;
         if (file_exists(dest)) continue;
 
+        /* In offline mode, never attempt download */
+        if (offline) {
+            bool is_optional = (f == "tokenizer_config.json" ||
+                               f == "special_tokens_map.json" ||
+                               f == "config.json");
+            if (!is_optional) {
+                throw std::runtime_error(
+                    "Model file not in cache (offline mode): " + dest);
+            }
+            continue;
+        }
+
         /* tokenizer/config files are optional (don't fail if missing for some) */
         bool is_optional = (f == "tokenizer_config.json" ||
                            f == "special_tokens_map.json" ||
@@ -240,6 +268,9 @@ inline std::string ensure_model(const std::string& repo_code,
 
 /* Stub for offline mode */
 #ifdef LIBEMBEDDING_NO_DOWNLOAD
+
+#include <stdexcept>
+
 namespace lembed { namespace detail {
 
 inline std::string get_cache_dir(const char* override_dir = nullptr) {
@@ -256,11 +287,25 @@ inline bool file_exists(const std::string& path) {
     return stat(path.c_str(), &st) == 0;
 }
 
+inline std::string read_file_to_string(const std::string& path) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) throw std::runtime_error("Cannot open file: " + path);
+    std::string blob;
+    char buf[65536];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        blob.append(buf, n);
+    }
+    fclose(f);
+    return blob;
+}
+
 inline std::string ensure_model(const std::string& repo_code,
-                                 const std::string& model_file,
-                                 const char* const* additional_files,
-                                 const std::string& cache_dir,
-                                 bool) {
+                                const std::string& model_file,
+                                const char* const* additional_files,
+                                const std::string& cache_dir,
+                                bool, bool offline = false) {
+    (void)additional_files;
     std::string repo_dir = repo_code;
     for (auto& c : repo_dir) { if (c == '/') c = '-'; }
     std::string model_dir = cache_dir + "/models--" + repo_dir;
@@ -268,6 +313,7 @@ inline std::string ensure_model(const std::string& repo_code,
     if (!file_exists(full_path)) {
         throw std::runtime_error("Model not in cache and downloading is disabled: " + full_path);
     }
+    (void)offline;
     return model_dir;
 }
 

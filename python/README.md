@@ -90,20 +90,27 @@ for m in libembedding.list_text_models():
 
 ```python
 TextEmbedding(
-    model_name="BAAI/bge-small-en-v1.5",  # HuggingFace model name or repo code
+    model_name="BAAI/bge-small-en-v1.5",  # HuggingFace model name, repo code, or local dir path
     provider="cpu",                         # "cpu", "cuda", "coreml", "directml", "tensorrt"
     device_id=0,
     cache_dir=None,                         # None = ~/.cache/libembedding
     max_length=0,                           # 0 = model default
-    num_threads=0,                          # 0 = auto
+    threads=0,                              # 0 = auto
+    batch_size=256,                         # internal batch size for embedding
+    offline=False,                          # True = use cache only, never download
     show_download_progress=True,
+    dim=0,                                  # embedding dim for local models without config.json
+    pooling="mean",                         # "cls" or "mean" for local models
+    num_threads=0,                          # deprecated, use threads
 )
 ```
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `embed(texts, batch_size=0)` | `np.ndarray (n, dim)` | L2-normalized dense embeddings |
+| `embed(texts, batch_size=None)` | `np.ndarray (n, dim)` | L2-normalized dense embeddings |
 | `dim` | `int` | Embedding dimension |
+| `name` | `str` | Model name or local path |
+| `info()` | `ModelDesc` | Runtime model descriptor |
 | `close()` | `None` | Release resources |
 
 ### SparseTextEmbedding
@@ -138,6 +145,15 @@ Reranker(model_name="BAAI/bge-reranker-base", ...)
 | `rerank(query, documents, batch_size=0)` | `list[RerankResult]` | Sorted by score descending |
 
 All classes support context managers (`with TextEmbedding(...) as model:`).
+
+### Local Model Loading
+
+```python
+from libembedding import TextEmbedding
+
+# Load from a local directory containing model.onnx + tokenizer.json (+ config.json)
+model = TextEmbedding("/path/to/model_dir")
+```
 
 ## Available Models
 
@@ -191,8 +207,8 @@ python -m build
 This produces files in `dist/`:
 ```
 dist/
-  libembedding-0.1.0.tar.gz              # source distribution
-  libembedding-0.1.0-py3-none-any.whl    # wheel (includes bundled .dylib/.so)
+  libembedding-0.2.0.tar.gz              # source distribution
+  libembedding-0.2.0-py3-none-any.whl    # wheel (includes bundled .dylib/.so)
 ```
 
 ### Upload to PyPI

@@ -61,7 +61,7 @@ def bench_libembedding(corpus):
         t0 = time.perf_counter()
         model = TextEmbedding(
             "sentence-transformers/all-MiniLM-L6-v2",
-            num_threads=1,
+            threads=1,
             show_download_progress=False,
         )
         t1 = time.perf_counter()
@@ -71,7 +71,7 @@ def bench_libembedding(corpus):
 
     model = TextEmbedding(
         "sentence-transformers/all-MiniLM-L6-v2",
-        num_threads=1,
+        threads=1,
         show_download_progress=False,
     )
     rss_after_load = peak_rss_mb()

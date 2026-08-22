@@ -1,5 +1,7 @@
 """Tests for TextEmbedding."""
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -52,3 +54,76 @@ def test_text_embedding_cosine_similarity():
     sim_different = np.dot(result[0], result[2])
     assert sim_similar > sim_different
     model.close()
+
+
+def test_text_embedding_threads_param():
+    from libembedding import TextEmbedding
+
+    with TextEmbedding("BAAI/bge-small-en-v1.5", threads=2) as model:
+        info = model.info()
+        assert info.num_threads == 2
+
+
+def test_text_embedding_num_threads_deprecated():
+    from libembedding import TextEmbedding
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        TextEmbedding("BAAI/bge-small-en-v1.5", num_threads=2)
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "num_threads" in str(w[0].message)
+
+
+def test_text_embedding_batch_size():
+    from libembedding import TextEmbedding
+
+    model = TextEmbedding("BAAI/bge-small-en-v1.5", batch_size=64)
+    assert model.batch_size == 64
+    info = model.info()
+    assert info.batch_size == 64
+    result = model.embed(["Hello", "World"], batch_size=1)
+    assert result.shape == (2, 384)
+    # Default batch_size (None) uses constructor default
+    result2 = model.embed(["Hello", "World"])
+    assert result2.shape == (2, 384)
+    model.close()
+
+
+def test_text_embedding_info():
+    from libembedding import TextEmbedding
+
+    with TextEmbedding("BAAI/bge-small-en-v1.5") as model:
+        info = model.info()
+        assert info.dimension == 384
+        assert info.dimension > 0
+        assert info.max_length > 0
+        assert info.batch_size > 0
+
+
+def test_text_embedding_name():
+    from libembedding import TextEmbedding
+
+    with TextEmbedding("BAAI/bge-small-en-v1.5") as model:
+        assert "bge-small" in model.name
+
+
+def test_text_embedding_offline_param():
+    """Verify offline parameter is accepted and mapped to options."""
+    from libembedding import TextEmbedding
+
+    # offline=False (default) should work when model is cached or downloadable
+    with TextEmbedding("BAAI/bge-small-en-v1.5", offline=False) as model:
+        assert model.dim == 384
+        info = model.info()
+        assert info.batch_size == 256
+
+
+def test_text_embedding_offline_missing_model():
+    """offline=True with a model not in cache should raise an error."""
+    from libembedding import TextEmbedding
+    from libembedding.exceptions import LembedError
+
+    # BGE large is not used by other tests, so likely not cached
+    with pytest.raises(LembedError):
+        TextEmbedding("BAAI/bge-large-en-v1.5", offline=True)

@@ -9,9 +9,9 @@
 #define LIBEMBEDDING_CONFIG_H
 
 #define LIBEMBEDDING_VERSION_MAJOR 0
-#define LIBEMBEDDING_VERSION_MINOR 1
+#define LIBEMBEDDING_VERSION_MINOR 2
 #define LIBEMBEDDING_VERSION_PATCH 0
-#define LIBEMBEDDING_VERSION_STRING "0.1.0"
+#define LIBEMBEDDING_VERSION_STRING "0.2.0"
 
 /* Feature toggles (can be defined before including headers) */
 

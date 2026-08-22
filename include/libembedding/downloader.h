@@ -20,24 +20,28 @@ lembed_status_t lembed_ensure_text_model(
     lembed_text_model_t model,
     const char* cache_dir,      /* NULL = default */
     int show_progress,
+    int offline,                /* 1 = skip downloads, cache only */
     char** model_dir_out);
 
 lembed_status_t lembed_ensure_sparse_model(
     lembed_sparse_model_t model,
     const char* cache_dir,
     int show_progress,
+    int offline,
     char** model_dir_out);
 
 lembed_status_t lembed_ensure_image_model(
     lembed_image_model_t model,
     const char* cache_dir,
     int show_progress,
+    int offline,
     char** model_dir_out);
 
 lembed_status_t lembed_ensure_reranker_model(
     lembed_reranker_model_t model,
     const char* cache_dir,
     int show_progress,
+    int offline,
     char** model_dir_out);
 
 void lembed_free_string(char* s);
@@ -73,7 +77,7 @@ static const char* const* lembed__get_additional_files(int model_enum, int model
 
 lembed_status_t lembed_ensure_text_model(
         lembed_text_model_t model, const char* cache_dir,
-        int show_progress, char** model_dir_out) {
+        int show_progress, int offline, char** model_dir_out) {
     if (!model_dir_out) return LEMBED_ERROR_INVALID_ARGUMENT;
     lembed_model_info_t info;
     lembed_status_t s = lembed_get_text_model_info(model, &info);
@@ -84,7 +88,7 @@ lembed_status_t lembed_ensure_text_model(
             info.model_code, info.model_file,
             lembed__get_additional_files((int)model, LEMBED__MODEL_TYPE_TEXT),
             lembed::detail::get_cache_dir(cache_dir),
-            show_progress != 0);
+            show_progress != 0, offline != 0);
         *model_dir_out = strdup(dir.c_str());
         return LEMBED_OK;
     } catch (const std::exception& e) {
@@ -95,7 +99,7 @@ lembed_status_t lembed_ensure_text_model(
 
 lembed_status_t lembed_ensure_sparse_model(
         lembed_sparse_model_t model, const char* cache_dir,
-        int show_progress, char** model_dir_out) {
+        int show_progress, int offline, char** model_dir_out) {
     if (!model_dir_out) return LEMBED_ERROR_INVALID_ARGUMENT;
     lembed_model_info_t info;
     lembed_status_t s = lembed_get_sparse_model_info(model, &info);
@@ -106,7 +110,7 @@ lembed_status_t lembed_ensure_sparse_model(
             info.model_code, info.model_file,
             lembed__get_additional_files((int)model, LEMBED__MODEL_TYPE_SPARSE),
             lembed::detail::get_cache_dir(cache_dir),
-            show_progress != 0);
+            show_progress != 0, offline != 0);
         *model_dir_out = strdup(dir.c_str());
         return LEMBED_OK;
     } catch (const std::exception& e) {
@@ -117,7 +121,7 @@ lembed_status_t lembed_ensure_sparse_model(
 
 lembed_status_t lembed_ensure_image_model(
         lembed_image_model_t model, const char* cache_dir,
-        int show_progress, char** model_dir_out) {
+        int show_progress, int offline, char** model_dir_out) {
     if (!model_dir_out) return LEMBED_ERROR_INVALID_ARGUMENT;
     lembed_model_info_t info;
     lembed_status_t s = lembed_get_image_model_info(model, &info);
@@ -128,7 +132,7 @@ lembed_status_t lembed_ensure_image_model(
             info.model_code, info.model_file,
             NULL,
             lembed::detail::get_cache_dir(cache_dir),
-            show_progress != 0);
+            show_progress != 0, offline != 0);
         *model_dir_out = strdup(dir.c_str());
         return LEMBED_OK;
     } catch (const std::exception& e) {
@@ -139,7 +143,7 @@ lembed_status_t lembed_ensure_image_model(
 
 lembed_status_t lembed_ensure_reranker_model(
         lembed_reranker_model_t model, const char* cache_dir,
-        int show_progress, char** model_dir_out) {
+        int show_progress, int offline, char** model_dir_out) {
     if (!model_dir_out) return LEMBED_ERROR_INVALID_ARGUMENT;
     lembed_model_info_t info;
     lembed_status_t s = lembed_get_reranker_model_info(model, &info);
@@ -150,7 +154,7 @@ lembed_status_t lembed_ensure_reranker_model(
             info.model_code, info.model_file,
             lembed__get_additional_files((int)model, LEMBED__MODEL_TYPE_RERANKER),
             lembed::detail::get_cache_dir(cache_dir),
-            show_progress != 0);
+            show_progress != 0, offline != 0);
         *model_dir_out = strdup(dir.c_str());
         return LEMBED_OK;
     } catch (const std::exception& e) {

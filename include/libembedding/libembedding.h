@@ -20,6 +20,7 @@
 #include "types.h"
 #include "model_registry.h"
 #include "downloader.h"
+#include "model_loader.h"
 #include "text_embedding.h"
 #include "sparse_text_embedding.h"
 

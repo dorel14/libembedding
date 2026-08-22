@@ -124,6 +124,17 @@ typedef struct {
     int         quantization;
 } lembed_model_info_t;
 
+typedef struct {
+    const char*                name;
+    int                        dimension;
+    int                        max_length;
+    int                        pooling;
+    int                        num_threads;
+    int                        batch_size;
+    lembed_execution_provider_t provider;
+    int                        device_id;
+} lembed_model_desc_t;
+
 typedef struct lembed_text_embedding    lembed_text_embedding_t;
 typedef struct lembed_sparse_embedding  lembed_sparse_embedding_ctx_t;
 typedef struct lembed_image_embedding   lembed_image_embedding_t;
@@ -164,6 +175,10 @@ typedef struct {
     int                         max_length;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
+    int                         pooling;
+    int                         dim;
 } lembed_text_options_t;
 
 typedef struct {
@@ -174,6 +189,8 @@ typedef struct {
     int                         max_length;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
 } lembed_sparse_options_t;
 
 typedef struct {
@@ -183,6 +200,9 @@ typedef struct {
     const char*                 cache_dir;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
+    int                         dim;
 } lembed_image_options_t;
 
 typedef struct {
@@ -193,6 +213,8 @@ typedef struct {
     int                         max_length;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
 } lembed_reranker_options_t;
 
 typedef struct {
@@ -218,25 +240,41 @@ lembed_reranker_options_t lembed_reranker_options_default(void);
 /* Text embedding */
 lembed_status_t lembed_text_embedding_create(const lembed_text_options_t* options, lembed_text_embedding_t** out);
 lembed_status_t lembed_text_embedding_create_custom(const lembed_user_defined_model_t* model, lembed_execution_provider_t provider, int num_threads, lembed_text_embedding_t** out);
+lembed_status_t lembed_text_embedding_create_from_path(const char* dir_path, const lembed_text_options_t* options, lembed_text_embedding_t** out);
 lembed_status_t lembed_text_embedding_embed(lembed_text_embedding_t* ctx, const char* const* texts, int num_texts, int batch_size, lembed_embeddings_t* result);
 int lembed_text_embedding_dim(const lembed_text_embedding_t* ctx);
+const lembed_model_desc_t* lembed_text_embedding_desc(const lembed_text_embedding_t* ctx);
+const char* lembed_text_embedding_model_name(const lembed_text_embedding_t* ctx);
+int lembed_text_embedding_max_length(const lembed_text_embedding_t* ctx);
 void lembed_text_embedding_free(lembed_text_embedding_t* ctx);
 
 /* Sparse text embedding */
 lembed_status_t lembed_sparse_text_embedding_create(const lembed_sparse_options_t* options, lembed_sparse_embedding_ctx_t** out);
+lembed_status_t lembed_sparse_text_embedding_create_from_path(const char* dir_path, const lembed_sparse_options_t* options, lembed_sparse_embedding_ctx_t** out);
 lembed_status_t lembed_sparse_text_embedding_embed(lembed_sparse_embedding_ctx_t* ctx, const char* const* texts, int num_texts, int batch_size, lembed_sparse_embeddings_t* result);
+const lembed_model_desc_t* lembed_sparse_text_embedding_desc(const lembed_sparse_embedding_ctx_t* ctx);
+const char* lembed_sparse_text_embedding_model_name(const lembed_sparse_embedding_ctx_t* ctx);
+int lembed_sparse_text_embedding_max_length(const lembed_sparse_embedding_ctx_t* ctx);
 void lembed_sparse_text_embedding_free(lembed_sparse_embedding_ctx_t* ctx);
 
 /* Image embedding */
 lembed_status_t lembed_image_embedding_create(const lembed_image_options_t* options, lembed_image_embedding_t** out);
+lembed_status_t lembed_image_embedding_create_from_path(const char* dir_path, const lembed_image_options_t* options, lembed_image_embedding_t** out);
 lembed_status_t lembed_image_embedding_embed_files(lembed_image_embedding_t* ctx, const char* const* file_paths, int num_images, int batch_size, lembed_embeddings_t* result);
 lembed_status_t lembed_image_embedding_embed_bytes(lembed_image_embedding_t* ctx, const unsigned char* const* image_data, const int* image_sizes, int num_images, int batch_size, lembed_embeddings_t* result);
 int lembed_image_embedding_dim(const lembed_image_embedding_t* ctx);
+const lembed_model_desc_t* lembed_image_embedding_desc(const lembed_image_embedding_t* ctx);
+const char* lembed_image_embedding_model_name(const lembed_image_embedding_t* ctx);
+int lembed_image_embedding_max_length(const lembed_image_embedding_t* ctx);
 void lembed_image_embedding_free(lembed_image_embedding_t* ctx);
 
 /* Reranker */
 lembed_status_t lembed_reranker_create(const lembed_reranker_options_t* options, lembed_reranker_t** out);
+lembed_status_t lembed_reranker_create_from_path(const char* dir_path, const lembed_reranker_options_t* options, lembed_reranker_t** out);
 lembed_status_t lembed_reranker_rerank(lembed_reranker_t* ctx, const char* query, const char* const* documents, int num_documents, int batch_size, lembed_rerank_results_t* result);
+const lembed_model_desc_t* lembed_reranker_desc(const lembed_reranker_t* ctx);
+const char* lembed_reranker_model_name(const lembed_reranker_t* ctx);
+int lembed_reranker_max_length(const lembed_reranker_t* ctx);
 void lembed_reranker_free(lembed_reranker_t* ctx);
 
 /* Model registry */
@@ -252,10 +290,10 @@ int lembed_find_text_model_by_code(const char* model_code);
 int lembed_find_sparse_model_by_code(const char* model_code);
 
 /* Downloader */
-lembed_status_t lembed_ensure_text_model(lembed_text_model_t model, const char* cache_dir, int show_progress, char** model_dir_out);
-lembed_status_t lembed_ensure_sparse_model(lembed_sparse_model_t model, const char* cache_dir, int show_progress, char** model_dir_out);
-lembed_status_t lembed_ensure_image_model(lembed_image_model_t model, const char* cache_dir, int show_progress, char** model_dir_out);
-lembed_status_t lembed_ensure_reranker_model(lembed_reranker_model_t model, const char* cache_dir, int show_progress, char** model_dir_out);
+lembed_status_t lembed_ensure_text_model(lembed_text_model_t model, const char* cache_dir, int show_progress, int offline, char** model_dir_out);
+lembed_status_t lembed_ensure_sparse_model(lembed_sparse_model_t model, const char* cache_dir, int show_progress, int offline, char** model_dir_out);
+lembed_status_t lembed_ensure_image_model(lembed_image_model_t model, const char* cache_dir, int show_progress, int offline, char** model_dir_out);
+lembed_status_t lembed_ensure_reranker_model(lembed_reranker_model_t model, const char* cache_dir, int show_progress, int offline, char** model_dir_out);
 void lembed_free_string(char* s);
 
 /* Memory free */

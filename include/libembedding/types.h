@@ -160,6 +160,22 @@ typedef struct {
 } lembed_model_info_t;
 
 /* =========================================================================
+ * Model Descriptor (runtime introspection)
+ * Returned by lembed_*_desc() to expose the effective configuration
+ * of an already-created embedding context.
+ * ========================================================================= */
+typedef struct {
+    const char*                name;          /* model name or local path */
+    int                        dimension;       /* embedding dimension */
+    int                        max_length;      /* effective max token length */
+    int                        pooling;         /* lembed_pooling_t */
+    int                        num_threads;     /* threads configured */
+    int                        batch_size;      /* batch_size configured */
+    lembed_execution_provider_t provider;       /* execution provider in use */
+    int                        device_id;       /* device id in use */
+} lembed_model_desc_t;
+
+/* =========================================================================
  * Opaque Handles
  * ========================================================================= */
 
@@ -216,6 +232,10 @@ typedef struct {
     int                         max_length;   /* 0 = model default */
     int                         num_threads;  /* 0 = auto */
     int                         show_download_progress;
+    int                         batch_size;   /* 0 = default (256) */
+    int                         offline;      /* 1 = skip downloads, use cache only */
+    int                         pooling;      /* lembed_pooling_t, for local models without config.json */
+    int                         dim;          /* embedding dim, for local models without config.json */
 } lembed_text_options_t;
 
 typedef struct {
@@ -226,6 +246,8 @@ typedef struct {
     int                         max_length;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
 } lembed_sparse_options_t;
 
 typedef struct {
@@ -235,6 +257,9 @@ typedef struct {
     const char*                 cache_dir;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
+    int                         dim;          /* for local models without config.json */
 } lembed_image_options_t;
 
 typedef struct {
@@ -245,6 +270,8 @@ typedef struct {
     int                         max_length;
     int                         num_threads;
     int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
 } lembed_reranker_options_t;
 
 /* User-defined model (bring-your-own ONNX) */
@@ -290,6 +317,8 @@ lembed_text_options_t lembed_text_options_default(void) {
     opts.model = LEMBED_TEXT_MODEL_DEFAULT;
     opts.provider = LEMBED_PROVIDER_CPU;
     opts.show_download_progress = 1;
+    opts.batch_size = LEMBED_DEFAULT_BATCH_SIZE;
+    opts.pooling = LEMBED_POOLING_MEAN;
     return opts;
 }
 
@@ -299,6 +328,7 @@ lembed_sparse_options_t lembed_sparse_options_default(void) {
     opts.model = LEMBED_SPARSE_MODEL_DEFAULT;
     opts.provider = LEMBED_PROVIDER_CPU;
     opts.show_download_progress = 1;
+    opts.batch_size = LEMBED_DEFAULT_BATCH_SIZE;
     return opts;
 }
 
@@ -308,6 +338,7 @@ lembed_image_options_t lembed_image_options_default(void) {
     opts.model = LEMBED_IMAGE_MODEL_DEFAULT;
     opts.provider = LEMBED_PROVIDER_CPU;
     opts.show_download_progress = 1;
+    opts.batch_size = LEMBED_DEFAULT_BATCH_SIZE;
     return opts;
 }
 
@@ -317,6 +348,7 @@ lembed_reranker_options_t lembed_reranker_options_default(void) {
     opts.model = LEMBED_RERANKER_MODEL_DEFAULT;
     opts.provider = LEMBED_PROVIDER_CPU;
     opts.show_download_progress = 1;
+    opts.batch_size = LEMBED_DEFAULT_BATCH_SIZE;
     return opts;
 }
 

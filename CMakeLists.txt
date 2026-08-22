@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 cmake_policy(SET CMP0144 NEW)
 project(libembedding
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "C header-only embedding library using ONNX Runtime"
     LANGUAGES C CXX
 )
@@ -190,6 +190,49 @@ else()
     if(LIBEMBEDDING_NO_IMAGE)
         target_compile_definitions(libembedding INTERFACE LIBEMBEDDING_NO_IMAGE)
     endif()
+endif()
+
+# =========================================================================
+# Helper: copy runtime DLLs next to executables on Windows
+# =========================================================================
+if(WIN32)
+    set(_LEMBED_ONNX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib")
+    function(copy_runtime_dlls target_name)
+        # ONNX Runtime DLLs
+        set(_dll_dirs
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib"
+        )
+        set(_dll_names
+            onnxruntime.dll
+            onnxruntime_providers_shared.dll
+        )
+        # Also copy libembedding.dll if it exists in build output
+        set(_lib_dir "${CMAKE_BINARY_DIR}/$<CONFIG>")
+        if(EXISTS "${_lib_dir}/libembedding.dll")
+            list(APPEND _dll_names libembedding.dll)
+        endif()
+
+        # Curl DLL (from CURL_LIBRARY or CURL_DIR)
+        if(DEFINED CURL_LIBRARY)
+            get_filename_component(_curl_lib_dir "${CURL_LIBRARY}" DIRECTORY)
+            if(EXISTS "${_curl_lib_dir}/../bin/libcurl-x64.dll")
+                list(APPEND _dll_dirs "${_curl_lib_dir}/../bin")
+                list(APPEND _dll_names libcurl-x64.dll)
+            endif()
+        endif()
+
+        foreach(_dll ${_dll_names})
+            foreach(_dir ${_dll_dirs})
+                if(EXISTS "${_dir}/${_dll}")
+                    add_custom_command(TARGET ${target_name} POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                            "${_dir}/${_dll}"
+                            "$<TARGET_FILE_DIR:${target_name}>"
+                    )
+                endif()
+            endforeach()
+        endforeach()
+    endfunction()
 endif()
 
 # =========================================================================

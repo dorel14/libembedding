@@ -2,22 +2,37 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from ._binding import ffi, lib
 from ._status import check_status
-from .models import resolve_image_model, _PROVIDER_MAP
+from .models import (
+    resolve_image_model,
+    list_image_models,
+    _PROVIDER_MAP,
+    _desc_from_c,
+    _is_local_path,
+)
+from .types import ModelDesc
+from .exceptions import ModelNotFoundError
 
 
 class ImageEmbedding:
     """Generate dense vector embeddings from images.
 
     Args:
-        model_name: Model name (e.g. "Qdrant/clip-ViT-B-32-vision").
+        model_name: Model name (e.g. "openai/clip-vit-base-patch32") or local
+            directory path.
         provider: Execution provider.
         cache_dir: Model cache directory.
-        num_threads: Number of threads (0 = auto).
+        threads: Number of threads (0 = auto).
+        batch_size: Internal batch size (default 32).
+        offline: If True, use cached models only (default False).
         show_download_progress: Show download progress bar.
+        dim: Output dimension for local models without config.json (0 = auto).
+        num_threads: Deprecated; use ``threads``.
     """
 
     def __init__(
@@ -27,28 +42,78 @@ class ImageEmbedding:
         provider: str = "cpu",
         device_id: int = 0,
         cache_dir: str | None = None,
-        num_threads: int = 0,
+        threads: int = 0,
+        batch_size: int = 30,
+        offline: bool = False,
         show_download_progress: bool = True,
+        dim: int = 0,
+        num_threads: int | None = None,
     ):
+        if num_threads is not None:
+            warnings.warn(
+                "num_threads is deprecated, use threads",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            threads = num_threads
+
         opts = lib.lembed_image_options_default()
-        opts.model = resolve_image_model(model_name)
         opts.provider = _PROVIDER_MAP[provider.lower()]
         opts.device_id = device_id
-        self._cache_dir_buf = ffi.new("char[]", cache_dir.encode()) if cache_dir else ffi.NULL
+        self._cache_dir_buf = (
+            ffi.new("char[]", cache_dir.encode("utf-8")) if cache_dir else ffi.NULL
+        )
         opts.cache_dir = self._cache_dir_buf
-        opts.num_threads = num_threads
+        opts.num_threads = threads
+        opts.batch_size = batch_size
+        opts.offline = int(offline)
         opts.show_download_progress = int(show_download_progress)
+        opts.dim = dim
 
         ctx_ptr = ffi.new("lembed_image_embedding_t **")
-        check_status(lib.lembed_image_embedding_create(ffi.addressof(opts), ctx_ptr))
+
+        try:
+            model_idx = resolve_image_model(model_name)
+            opts.model = model_idx
+            check_status(lib.lembed_image_embedding_create(
+                ffi.addressof(opts), ctx_ptr))
+        except ModelNotFoundError:
+            if _is_local_path(model_name):
+                check_status(lib.lembed_image_embedding_create_from_path(
+                    model_name.encode("utf-8"), ffi.addressof(opts), ctx_ptr))
+            else:
+                raise
+
         self._ctx = ffi.gc(ctx_ptr[0], lib.lembed_image_embedding_free)
         self._dim = lib.lembed_image_embedding_dim(self._ctx)
+        self._batch_size = batch_size
+
+    @staticmethod
+    def list_supported_models():
+        """Return a list of all supported image embedding models."""
+        return list_image_models()
 
     @property
     def dim(self) -> int:
         return self._dim
 
-    def embed_files(self, paths: list[str], *, batch_size: int = 0) -> np.ndarray:
+    @property
+    def batch_size(self) -> int:
+        """Configured internal batch size."""
+        return self._batch_size
+
+    def info(self) -> ModelDesc:
+        """Return runtime model descriptor."""
+        desc_ptr = lib.lembed_image_embedding_desc(self._ctx)
+        return _desc_from_c(desc_ptr)
+
+    @property
+    def name(self) -> str:
+        """Model name or local path."""
+        name_ptr = lib.lembed_image_embedding_model_name(self._ctx)
+        return ffi.string(name_ptr).decode("utf-8", errors="replace") if name_ptr else ""
+
+    def embed_files(self, paths: list[str], *, batch_size: int | None = None) -> np.ndarray:
         """Embed images from file paths.
 
         Returns:
@@ -58,13 +123,15 @@ class ImageEmbedding:
         if n == 0:
             return np.empty((0, self._dim), dtype=np.float32)
 
+        bs = 0 if batch_size is None else batch_size
+
         encoded = [p.encode("utf-8") for p in paths]
         c_strs = [ffi.new("char[]", e) for e in encoded]
         c_paths = ffi.new("char*[]", c_strs)
 
         result = ffi.new("lembed_embeddings_t *")
         check_status(
-            lib.lembed_image_embedding_embed_files(self._ctx, c_paths, n, batch_size, result)
+            lib.lembed_image_embedding_embed_files(self._ctx, c_paths, n, bs, result)
         )
 
         try:
@@ -74,7 +141,7 @@ class ImageEmbedding:
         finally:
             lib.lembed_embeddings_free(result)
 
-    def embed_bytes(self, images: list[bytes], *, batch_size: int = 0) -> np.ndarray:
+    def embed_bytes(self, images: list[bytes], *, batch_size: int | None = None) -> np.ndarray:
         """Embed images from raw bytes (JPEG, PNG, etc.).
 
         Returns:
@@ -83,6 +150,8 @@ class ImageEmbedding:
         n = len(images)
         if n == 0:
             return np.empty((0, self._dim), dtype=np.float32)
+
+        bs = 0 if batch_size is None else batch_size
 
         c_data = ffi.new("unsigned char*[]", n)
         c_sizes = ffi.new("int[]", n)
@@ -96,7 +165,7 @@ class ImageEmbedding:
         result = ffi.new("lembed_embeddings_t *")
         check_status(
             lib.lembed_image_embedding_embed_bytes(
-                self._ctx, c_data, c_sizes, n, batch_size, result
+                self._ctx, c_data, c_sizes, n, bs, result
             )
         )
 
@@ -108,6 +177,7 @@ class ImageEmbedding:
             lib.lembed_embeddings_free(result)
 
     def close(self) -> None:
+        """Release the underlying C resources."""
         self._ctx = None
 
     def __enter__(self):

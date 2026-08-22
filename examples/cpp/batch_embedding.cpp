@@ -23,6 +23,7 @@ int main(void) {
     {
         lembed_text_options_t opts = lembed_text_options_default();
         opts.model = LEMBED_TEXT_ALL_MINILM_L6_V2;  /* 384-dim, fast */
+        opts.batch_size = 32;
 
         /* Print model info */
         lembed_model_info_t info;
@@ -34,6 +35,13 @@ int main(void) {
         if (s != LEMBED_OK) {
             printf("Error: %s\n", lembed_last_error());
             return 1;
+        }
+
+        /* Print runtime descriptor */
+        const lembed_model_desc_t* desc = lembed_text_embedding_desc(embedder);
+        if (desc) {
+            printf("  threads=%d, batch_size=%d, provider=%d\n",
+                   desc->num_threads, desc->batch_size, desc->provider);
         }
 
         /* Batch of texts */
