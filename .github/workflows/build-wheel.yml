@@ -1,0 +1,161 @@
+name: Build Wheel (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      python:
+        required: true
+        type: string
+
+env:
+  ONNXRUNTIME_VERSION: "1.20.1"
+
+jobs:
+  build:
+    name: ${{ inputs.os }}
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python }}
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cffi numpy build wheel pytest pytest-timeout
+
+      # ── Platform-specific system dependencies ────────────────────
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libcurl4-openssl-dev
+          curl -L "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNXRUNTIME_VERSION }}/onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}.tgz" | tar xz
+          echo "ONNXRUNTIME_ROOT=$PWD/onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}" >> "$GITHUB_ENV"
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake
+          if [ "$(uname -m)" = "arm64" ]; then
+            curl -L "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNXRUNTIME_VERSION }}/onnxruntime-osx-arm64-${{ env.ONNXRUNTIME_VERSION }}.tgz" | tar xz
+            echo "ONNXRUNTIME_ROOT=$PWD/onnxruntime-osx-arm64-${{ env.ONNXRUNTIME_VERSION }}" >> "$GITHUB_ENV"
+          else
+            curl -L "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNXRUNTIME_VERSION }}/onnxruntime-osx-x86_64-${{ env.ONNXRUNTIME_VERSION }}.tgz" | tar xz
+            echo "ONNXRUNTIME_ROOT=$PWD/onnxruntime-osx-x86_64-${{ env.ONNXRUNTIME_VERSION }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install cmake -y
+
+          # Install curl via vcpkg (MSVC-compatible import library + headers)
+          & "C:\vcpkg\vcpkg.exe" install curl:x64-windows
+
+          # Use bundled third_party/onnxruntime for the native build
+          echo "ONNXRUNTIME_ROOT=${{ github.workspace }}\third_party\onnxruntime" >> $env:GITHUB_ENV
+
+          # vcpkg toolchain so CMake's find_package(CURL) works
+          echo "CMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
+
+      # ── Build the C++ shared library ─────────────────────────────
+      - name: Build shared library
+        env:
+          ONNXRUNTIME_ROOT: ${{ env.ONNXRUNTIME_ROOT }}
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBEMBEDDING_BUILD_SHARED=ON \
+            -DLIBEMBEDDING_BUILD_TESTS=OFF \
+            -DLIBEMBEDDING_BUILD_EXAMPLES=OFF \
+            -DLIBEMBEDDING_BUILD_BENCHMARKS=OFF \
+            -DOONXRUNTIME_ROOT="$ONNXRUNTIME_ROOT"
+          cmake --build . --parallel --target embedding_shared --config Release
+
+      # ── Copy shared library into the Python package ──────────────
+      - name: Copy shared library (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then ext=".so"; else ext=".dylib"; fi
+          cp "build/libembedding${ext}" python/src/libembedding/
+          ls -la python/src/libembedding/
+
+      - name: Copy shared library and onnxruntime (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # MSVC: OUTPUT_NAME="embedding" → file is embedding.dll (not libembedding.dll)
+          $dll = Get-ChildItem -Path build -Recurse -Filter "embedding.dll" | Select-Object -First 1
+          if ($dll) {
+            Write-Host "Found: $($dll.FullName)"
+            Copy-Item $dll.FullName python/src/libembedding/libembedding.dll -Force
+          } else {
+            Copy-Item build/libembedding.dll python/src/libembedding/ -Force
+          }
+
+          # Vendor onnxruntime DLLs into the wheel so the package is self-contained
+          Copy-Item "${{ env.ONNXRUNTIME_ROOT }}\lib\onnxruntime.dll" python/src/libembedding/ -Force
+          Copy-Item "${{ env.ONNXRUNTIME_ROOT }}\lib\onnxruntime_providers_shared.dll" python/src/libembedding/ -Force
+
+          Get-ChildItem python/src/libembedding/
+
+      # ── Build the Python wheel ───────────────────────────────────
+      - name: Build wheel
+        run: |
+          cd python
+          python -m build --wheel --outdir dist/
+
+      # ── Repair wheel: vendor onnxruntime into the wheel ──────────
+      - name: Repair wheel with auditwheel (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          pip install auditwheel
+          rm -f python/dist/*-linux_x86_64.whl
+          auditwheel repair python/dist/*.whl -w python/dist/
+
+      - name: Repair wheel with delocate (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          pip install delocate
+          delocate-wheel -w python/dist/ python/dist/*.whl
+
+      # Windows: onnxruntime DLLs already copied into the package above
+
+      # ── Normalize wheel tags to py3-none (cffi ABI mode is
+      #    Python-version-independent) ─────────────────────────────
+      - name: Normalize wheel tags to py3-none
+        run: |
+          cd python/dist
+          for f in *.whl; do
+            newname=$(echo "$f" | sed 's/cp3[0-9]*-cp3[0-9]*/py3-none/')
+            if [ "$f" != "$newname" ]; then mv "$f" "$newname"; fi
+          done
+          ls -la
+
+      - name: List wheel contents
+        run: python -m zipfile -l python/dist/*.whl
+
+      # ── Install wheel and run tests ──────────────────────────────
+      - name: Install wheel and run tests
+        run: |
+          cd python
+          pip install dist/*.whl
+          pytest tests/ -v --timeout=120
+
+      # ── Upload wheel as artifact ────────────────────────────────
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ inputs.os }}
+          path: python/dist/*.whl
+          if-no-files-found: error
