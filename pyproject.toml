@@ -1,0 +1,11 @@
+[tool.semantic_release]
+version_toml = [
+    "python/pyproject.toml:project.version",
+]
+version_source = "commit"
+branch = "main"
+commit_parser = "angular"
+major_on_zero = true
+changelog = { template = "angular" }
+upload_to_pypi = false
+upload_to_vcs_release = true
