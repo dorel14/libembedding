@@ -26,7 +26,12 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.SEMANTIC_RELEASE_PAT }}
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -39,5 +44,5 @@ jobs:
       - name: Run semantic-release
         id: semantic
         env:
-          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: semantic-release publish 2>&1

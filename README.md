@@ -461,25 +461,156 @@ All option structs have a `_default()` constructor that returns safe defaults:
 
 ```c
 typedef struct {
-    lembed_text_model_t         model;         // default: LEMBED_TEXT_BGE_SMALL_EN_V15
-    lembed_execution_provider_t provider;      // default: LEMBED_PROVIDER_CPU
-    int                         device_id;     // default: 0
-    const char*                 cache_dir;     // default: NULL (~/.cache/libembedding)
-    int                         max_length;    // default: 0 (model's default)
-    int                         num_threads;   // default: 0 (auto)
+    lembed_text_model_t         model;           // default: LEMBED_TEXT_BGE_SMALL_EN_V15
+    lembed_execution_provider_t provider;       // default: LEMBED_PROVIDER_CPU
+    int                         device_id;      // default: 0
+    const char*                 cache_dir;      // default: NULL (~/.cache/libembedding)
+    int                         max_length;     // default: 0 (model's default)
+    int                         num_threads;    // default: 0 (auto)
     int                         show_download_progress; // default: 1
+    int                         batch_size;     // default: 256 (LEMBED_DEFAULT_BATCH_SIZE)
+    int                         offline;        // default: 0 (0=allow download, 1=cache-only)
+    int                         pooling;        // default: LEMBED_POOLING_MEAN (for local models)
+    int                         dim;            // default: 0 (for local models without config.json)
 } lembed_text_options_t;
 ```
+
+The `batch_size`, `offline`, `pooling`, and `dim` fields are available in all option structs (`lembed_sparse_options_t`, `lembed_image_options_t`, `lembed_reranker_options_t`).
 
 **Execution providers:**
 
 | Enum | Backend |
 |---|---|
 | `LEMBED_PROVIDER_CPU` | CPU (default, always available) |
-| `LEMBED_PROVIDER_CUDA` | NVIDIA CUDA (requires CUDA toolkit + ORT CUDA provider) |
+| `LEMBED_PROVIDER_CUDA` | NVIDIA CUDA (requires `USE_CUDA` + ORT CUDA provider) |
 | `LEMBED_PROVIDER_COREML` | Apple CoreML (macOS/iOS) |
-| `LEMBED_PROVIDER_DIRECTML` | DirectML (Windows) |
-| `LEMBED_PROVIDER_TENSORRT` | NVIDIA TensorRT |
+| `LEMBED_PROVIDER_DIRECTML` | DirectML (Windows, requires `USE_DML` + ORT DML provider) |
+| `LEMBED_PROVIDER_TENSORRT` | NVIDIA TensorRT (requires `USE_TENSORRT`) |
+
+Providers are configured via `configure_provider()` and gracefully fall back to CPU if the provider library is unavailable.
+
+---
+
+### Local Model Loading (`create_from_path`)
+
+Load models from a local directory containing `model.onnx` + `tokenizer.json`:
+
+```c
+#include <libembedding/text_embedding.h>
+
+lembed_text_options_t opts = lembed_text_options_default();
+opts.dim = 384;
+opts.pooling = LEMBED_POOLING_MEAN;
+
+lembed_text_embedding_t* embedder = NULL;
+/* dir_path must contain model.onnx, tokenizer.json, and optionally config.json */
+lembed_status_t s = lembed_text_embedding_create_from_path(
+    "/path/to/model_dir", &opts, &embedder);
+
+if (s == LEMBED_OK) {
+    /* Use exactly like built-in models */
+    lembed_embeddings_t result = {0};
+    lembed_text_embedding_embed(embedder, texts, n, 0, &result);
+    lembed_embeddings_free(&result);
+    lembed_text_embedding_free(embedder);
+}
+```
+
+If `config.json` is present, `dim`, `max_length`, and `pooling` are auto-detected. Without it, specify via the options struct.
+
+`create_from_path` is available for all model types: `lembed_text_embedding_create_from_path()`, `lembed_sparse_text_embedding_create_from_path()`, `lembed_image_embedding_create_from_path()`, `lembed_reranker_create_from_path()`.
+
+---
+
+### Offline Mode
+
+Use `options.offline = 1` to require models be available in cache without attempting downloads:
+
+```c
+lembed_text_options_t opts = lembed_text_options_default();
+opts.offline = 1;  // error if model not cached, never downloads
+lembed_text_embedding_create(&opts, &embedder);
+```
+
+For fully embedded builds (no network/curl dependency at compile time), use `-DLIBEMBEDDING_NO_DOWNLOAD=ON` or `#define LIBEMBEDDING_NO_DOWNLOAD`.
+
+---
+
+### Runtime Introspection (`desc()`, `model_name()`, `max_length()`, `stats()`)
+
+Query runtime configuration of a created context:
+
+```c
+/* Get model descriptor */
+const lembed_model_desc_t* desc = lembed_text_embedding_desc(embedder);
+printf("Model: %s (dim=%d, threads=%d, batch=%d, provider=%d)\n",
+       desc->name, desc->dimension, desc->num_threads, desc->batch_size, desc->provider);
+
+/* Convenience accessors */
+printf("Name: %s\n", lembed_text_embedding_model_name(embedder));
+printf("Max length: %d\n", lembed_text_embedding_max_length(embedder));
+
+/* Runtime statistics */
+lembed_stats_t stats = {0};
+lembed_text_embedding_stats(embedder, &stats);
+printf("Texts embedded: %llu, Batches: %llu, Avg latency: %.2f ms\n",
+       stats.texts_embedded, stats.batches_run, stats.avg_latency_ms);
+```
+
+`lembed_model_desc_t` struct:
+```c
+typedef struct {
+    const char*                name;          /* model name or local path */
+    int                        dimension;     /* embedding dimension */
+    int                        max_length;    /* effective max token length */
+    int                        pooling;       /* CLS or MEAN */
+    int                        num_threads;   /* threads configured */
+    int                        batch_size;    /* batch_size configured */
+    lembed_execution_provider_t provider;      /* execution provider in use */
+    int                        device_id;     /* device id in use */
+} lembed_model_desc_t;
+```
+
+---
+
+### Streaming API (`embed_stream`)
+
+Process large numbers of texts without allocating a single result buffer. Uses a callback pattern — each embedding is delivered individually:
+
+```c
+void on_embedding(const float* embedding, int dim, void* userdata) {
+    /* Do something with this single embedding */
+    /* userdata is passed through from the caller */
+}
+
+lembed_text_embedding_embed_stream(
+    embedder, texts, num_texts,
+    0 /* batch_size = use context default */,
+    on_embedding, userdata);
+```
+
+---
+
+### Similarity Functions
+
+Native C functions for comparing embedding vectors:
+
+```c
+#include <libembedding/similarity.h>
+
+float sim = lembed_cosine_similarity(vec_a, vec_b, dim);
+float dot = lembed_dot_product(vec_a, vec_b, dim);
+float dist = lembed_euclidean_distance(vec_a, vec_b, dim);
+```
+
+---
+
+### Version
+
+```c
+#include <libembedding/config.h>
+const char* version = lembed_version();  /* e.g. "0.3.0" */
+```
 
 ---
 

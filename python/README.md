@@ -108,9 +108,12 @@ TextEmbedding(
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `embed(texts, batch_size=None)` | `np.ndarray (n, dim)` | L2-normalized dense embeddings |
+| `embed_stream(texts, batch_size=None)` | generator | Yields one embedding at a time (low memory) |
 | `dim` | `int` | Embedding dimension |
 | `name` | `str` | Model name or local path |
 | `info()` | `ModelDesc` | Runtime model descriptor |
+| `max_length()` | `int` | Max token length for the model |
+| `stats()` | `Stats` | Runtime statistics (texts, batches, latency) |
 | `close()` | `None` | Release resources |
 
 ### SparseTextEmbedding
@@ -122,6 +125,12 @@ SparseTextEmbedding(model_name="prithvida/SPLADE_PP_en_v1", ...)
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `embed(texts, batch_size=0)` | `list[SparseEmbedding]` | Sparse vectors with `.indices` and `.values` |
+| `embed_stream(texts, batch_size=None)` | generator | Yields one embedding at a time |
+| `dim` | `int` | Embedding dimension (0 = dynamic) |
+| `name` | `str` | Model name or local path |
+| `info()` | `ModelDesc` | Runtime model descriptor |
+| `max_length()` | `int` | Max token length |
+| `stats()` | `Stats` | Runtime statistics |
 
 ### ImageEmbedding
 
@@ -133,6 +142,10 @@ ImageEmbedding(model_name="Qdrant/clip-ViT-B-32-vision", ...)
 |--------|---------|-------------|
 | `embed_files(paths, batch_size=0)` | `np.ndarray (n, dim)` | Embed from file paths |
 | `embed_bytes(images, batch_size=0)` | `np.ndarray (n, dim)` | Embed from raw bytes |
+| `dim` | `int` | Embedding dimension |
+| `name` | `str` | Model name or local path |
+| `info()` | `ModelDesc` | Runtime model descriptor |
+| `stats()` | `Stats` | Runtime statistics |
 
 ### Reranker
 
@@ -143,8 +156,75 @@ Reranker(model_name="BAAI/bge-reranker-base", ...)
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `rerank(query, documents, batch_size=0)` | `list[RerankResult]` | Sorted by score descending |
+| `name` | `str` | Model name or local path |
+| `info()` | `ModelDesc` | Runtime model descriptor |
+| `max_length()` | `int` | Max token length |
+| `stats()` | `Stats` | Runtime statistics |
 
 All classes support context managers (`with TextEmbedding(...) as model:`).
+
+### Similarity Functions
+
+```python
+from libembedding import cosine_similarity, dot_product, euclidean_distance
+import numpy as np
+
+a = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+b = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+
+print(cosine_similarity(a, b))   # 1.0 (identical)
+print(dot_product(a, b))         # 14.0
+print(euclidean_distance(a, b))  # 0.0
+```
+
+### Streaming Embeddings
+
+Process large document sets without allocating a single result array:
+
+```python
+from libembedding import TextEmbedding
+
+with TextEmbedding("BAAI/bge-small-en-v1.5") as model:
+    for embedding in model.embed_stream(
+        ["doc1", "doc2", ...], batch_size=32
+    ):
+        # Each iteration yields a single (dim,) numpy array
+        process(embedding)
+```
+
+### Runtime Statistics
+
+```python
+with TextEmbedding("BAAI/bge-small-en-v1.5") as model:
+    model.embed(["text 1", "text 2", "text 3"])
+    stats = model.stats()
+    print(f"Embedded {stats.texts_embedded} texts "
+          f"({stats.batches_run} batches), "
+          f"avg latency {stats.avg_latency_ms:.2f}ms")
+```
+
+### Data Types
+
+**`ModelDesc`** — runtime model descriptor (returned by `info()`):
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `str` | Model name or local path |
+| `dimension` | `int` | Embedding dimension |
+| `max_length` | `int` | Max token length |
+| `pooling` | `str` | "cls" or "mean" |
+| `num_threads` | `int` | Threads configured |
+| `batch_size` | `int` | Batch size configured |
+| `provider` | `str` | Execution provider ("cpu", "cuda", "directml", "coreml") |
+| `device_id` | `int` | Device ID |
+
+**`Stats`** — runtime statistics (returned by `stats()`):
+
+| Field | Type | Description |
+|---|---|---|
+| `texts_embedded` | `int` | Total texts processed |
+| `batches_run` | `int` | Total ONNX inference batches |
+| `avg_latency_ms` | `float` | Average milliseconds per embed call |
 
 ### Local Model Loading
 
