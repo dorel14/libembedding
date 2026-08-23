@@ -17,6 +17,9 @@ jobs:
   build:
     name: ${{ matrix.name }}
     uses: ./.github/workflows/build-wheel.yml
+    with:
+      os: ${{ matrix.os }}
+      python: ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
