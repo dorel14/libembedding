@@ -124,13 +124,26 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # MSVC: OUTPUT_NAME="embedding" → file is embedding.dll (not libembedding.dll)
-          $dll = Get-ChildItem -Path build -Recurse -Filter "embedding.dll" | Select-Object -First 1
-          if ($dll) {
-            Write-Host "Found: $($dll.FullName)"
-            Copy-Item $dll.FullName python/src/libembedding/libembedding.dll -Force
+          # Prefer the real exported DLL; embedding.dll is a thin wrapper
+          # and may not export all lembed_* symbols on Windows.
+          if (Test-Path build/Release/libembedding.dll) {
+            Write-Host "Using build/Release/libembedding.dll"
+            Copy-Item build/Release/libembedding.dll python/src/libembedding/libembedding.dll -Force
           } else {
-            Copy-Item build/libembedding.dll python/src/libembedding/ -Force
+            $dll = Get-ChildItem -Path build -Recurse -Filter "libembedding.dll" | Select-Object -First 1
+            if ($dll) {
+              Write-Host "Found: $($dll.FullName)"
+              Copy-Item $dll.FullName python/src/libembedding/libembedding.dll -Force
+            } else {
+              $dll = Get-ChildItem -Path build -Recurse -Filter "embedding.dll" | Select-Object -First 1
+              if ($dll) {
+                Write-Host "Found embedding.dll: $($dll.FullName)"
+                Copy-Item $dll.FullName python/src/libembedding/libembedding.dll -Force
+              } else {
+                Write-Host "ERROR: no libembedding.dll or embedding.dll found under build"
+                exit 1
+              }
+            }
           }
 
           # Vendor onnxruntime DLLs into the wheel so the package is self-contained
