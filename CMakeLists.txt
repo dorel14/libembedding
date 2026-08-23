@@ -34,8 +34,9 @@ if(WIN32)
     # Allow overriding bundled third_party paths via environment variable
     # (e.g. for CI builds downloading onnxruntime from GitHub releases)
     if(DEFINED ENV{ONNXRUNTIME_ROOT})
-        set(ONNXRuntime_INCLUDE_DIR "$ENV{ONNXRUNTIME_ROOT}/include")
-        set(ONNXRuntime_LIBRARY "$ENV{ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
+        string(REPLACE "/" "\\" _ort_root "$ENV{ONNXRUNTIME_ROOT}")
+        set(ONNXRuntime_INCLUDE_DIR "${_ort_root}\\include")
+        set(ONNXRuntime_LIBRARY "${_ort_root}\\lib\\onnxruntime.lib")
     elseif(NOT ONNXRuntime_INCLUDE_DIR)
         set(ONNXRuntime_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include")
     endif()
@@ -127,6 +128,36 @@ else()
 endif()
 
 add_library(libembedding::libembedding ALIAS libembedding)
+
+# =========================================================================
+# CPU Optimizations
+# =========================================================================
+if(MSVC)
+    target_compile_options(libembedding PRIVATE
+        /O2       # Maximize speed
+        /Oi       # Favor fast code (intrinsics)
+        /Ot       # Favor fast over small code
+        /fp:fast  # Fast floating-point model
+    )
+    # AVX2 for Ice Lake and newer (safe baseline for modern x86)
+    target_compile_options(libembedding PRIVATE /arch:AVX2)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR NOT CMAKE_BUILD_TYPE)
+        target_compile_definitions(libembedding PRIVATE NDEBUG)
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(libembedding INTERFACE
+        -O3
+        -ffast-math
+    )
+    # Enable AVX2/AVX-512 where available
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag("-mavx2" _has_avx2)
+        if(_has_avx2)
+            target_compile_options(libembedding INTERFACE -mavx2)
+        endif()
+    endif()
+endif()
 
 # =========================================================================
 # Configuration des Inclusions et Liaisons (Adaptée Windows/DLL)
