@@ -192,6 +192,7 @@ jobs:
       # ── Normalize wheel tags to py3-none (cffi ABI mode is
       #    Python-version-independent) ─────────────────────────────
       - name: Normalize wheel tags to py3-none
+        shell: bash
         run: |
           cd python/dist
           for f in *.whl; do
