@@ -45,12 +45,30 @@ find_path(ONNXRuntime_INCLUDE_DIR
     PATH_SUFFIXES include include/onnxruntime
 )
 
-# Find library
+# Find library - search for both unversioned and versioned names
 find_library(ONNXRuntime_LIBRARY
     NAMES onnxruntime
     PATHS ${_onnxruntime_search_paths}
     PATH_SUFFIXES lib lib64
 )
+
+# Fallback: search for versioned shared libraries (e.g. libonnxruntime.so.1.20.1)
+if(NOT ONNXRuntime_LIBRARY)
+    foreach(_dir IN LISTS _onnxruntime_search_paths)
+        foreach(_suffix IN ITEMS lib lib64)
+            if(EXISTS "${_dir}/${_suffix}")
+                file(GLOB _candidates "${_dir}/${_suffix}/libonnxruntime*")
+                if(_candidates)
+                    list(GET _candidates 0 ONNXRuntime_LIBRARY)
+                    break()
+                endif()
+            endif()
+        endforeach()
+        if(ONNXRuntime_LIBRARY)
+            break()
+        endif()
+    endforeach()
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ONNXRuntime

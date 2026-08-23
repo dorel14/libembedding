@@ -65,8 +65,8 @@ else()
 endif()
 
 # ONNX Runtime (required)
-# Try the official cmake config first (ships with Homebrew, vcpkg, etc.)
-# Then fall back to our custom FindONNXRuntime module
+# Use our custom FindONNXRuntime module which handles downloaded archives
+# and system installs correctly
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Hint Homebrew paths on macOS
@@ -74,16 +74,7 @@ if(APPLE AND EXISTS "/opt/homebrew/opt/onnxruntime")
     list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/onnxruntime")
 endif()
 
-find_package(onnxruntime CONFIG QUIET)
-if(onnxruntime_FOUND)
-    message(STATUS "Found ONNX Runtime via cmake config")
-    # The Homebrew config exports onnxruntime::onnxruntime
-    if(NOT TARGET ONNXRuntime::ONNXRuntime)
-        add_library(ONNXRuntime::ONNXRuntime ALIAS onnxruntime::onnxruntime)
-    endif()
-else()
-    find_package(ONNXRuntime REQUIRED)
-endif()
+find_package(ONNXRuntime REQUIRED)
 
 # cJSON (bundled, for parsing tokenizer.json and config files)
 add_library(cjson STATIC
