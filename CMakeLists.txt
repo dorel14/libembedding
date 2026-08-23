@@ -132,6 +132,10 @@ add_library(libembedding::libembedding ALIAS libembedding)
 # =========================================================================
 # CPU Optimizations
 # =========================================================================
+# Note: /GL (whole-program opt) and /LTCG are intentionally omitted on MSVC
+# because they are incompatible with WINDOWS_EXPORT_ALL_SYMBOLS, which
+# CMake needs to parse object files to auto-generate the export definition.
+# To use LTCG, provide an explicit .def file instead.
 if(MSVC)
     target_compile_options(libembedding PRIVATE
         /O2       # Maximize speed
