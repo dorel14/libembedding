@@ -58,6 +58,9 @@ Homepage = "https://github.com/dorel14/libembedding"
 Repository = "https://github.com/dorel14/libembedding"
 Issues = "https://github.com/dorel14/libembedding/issues"
 
+[tool.setuptools]
+packages = ["libembedding"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

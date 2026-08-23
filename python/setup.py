@@ -16,4 +16,8 @@ class BinaryDistribution(Distribution):
         return True
 
 
-setup(distclass=BinaryDistribution)
+setup(
+    distclass=BinaryDistribution,
+    packages=["libembedding"],
+    package_dir={"": "src"},
+)
