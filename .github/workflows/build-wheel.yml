@@ -64,7 +64,7 @@ jobs:
           $url = "https://github.com/microsoft/onnxruntime/releases/download/v${{ env.ONNXRUNTIME_VERSION }}/onnxruntime-win-x64-${{ env.ONNXRUNTIME_VERSION }}.zip"
           Invoke-WebRequest -Uri $url -OutFile "onnxruntime-win-x64.zip"
           Expand-Archive -Path "onnxruntime-win-x64.zip" -DestinationPath "onnxruntime-win-x64"
-          echo "ONNXRUNTIME_ROOT=${{ github.workspace }}\onnxruntime-win-x64" >> $env:GITHUB_ENV
+          echo "ONNXRUNTIME_ROOT=${{ github.workspace }}/onnxruntime-win-x64" >> $env:GITHUB_ENV
 
           # vcpkg toolchain so CMake's find_package(CURL) works
           echo "CMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
