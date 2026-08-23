@@ -6,6 +6,7 @@ version_source = "commit"
 branch = "main"
 commit_parser = "angular"
 major_on_zero = true
+initial_version = "0.1.0"
 changelog = { template = "angular" }
 upload_to_pypi = false
 upload_to_vcs_release = true
