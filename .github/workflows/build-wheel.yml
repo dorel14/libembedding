@@ -134,8 +134,24 @@ jobs:
           }
 
           # Vendor onnxruntime DLLs into the wheel so the package is self-contained
-          Copy-Item "${{ env.ONNXRUNTIME_ROOT }}\bin\onnxruntime.dll" python/src/libembedding/ -Force
-          Copy-Item "${{ env.ONNXRUNTIME_ROOT }}\bin\onnxruntime_providers_shared.dll" python/src/libembedding/ -Force
+          # Search recursively since the archive layout may vary
+          $ortDll = Get-ChildItem -Path ${{ env.ONNXRUNTIME_ROOT }} -Recurse -Filter "onnxruntime.dll" | Select-Object -First 1
+          if ($ortDll) {
+            Write-Host "Found onnxruntime.dll: $($ortDll.FullName)"
+            Copy-Item $ortDll.FullName python/src/libembedding/ -Force
+          } else {
+            Write-Host "ERROR: onnxruntime.dll not found under ${{ env.ONNXRUNTIME_ROOT }}"
+            Get-ChildItem -Path ${{ env.ONNXRUNTIME_ROOT }} -Recurse | Select-Object FullName | Write-Output
+            exit 1
+          }
+
+          $ortProviders = Get-ChildItem -Path ${{ env.ONNXRUNTIME_ROOT }} -Recurse -Filter "onnxruntime_providers_shared.dll" | Select-Object -First 1
+          if ($ortProviders) {
+            Write-Host "Found onnxruntime_providers_shared.dll: $($ortProviders.FullName)"
+            Copy-Item $ortProviders.FullName python/src/libembedding/ -Force
+          } else {
+            Write-Host "WARNING: onnxruntime_providers_shared.dll not found"
+          }
 
           # Vendor ALL third-party DLLs from vcpkg (curl + dependencies like zlib, ssl, etc.)
           # This ensures the wheel is self-contained regardless of curl's dependency tree
