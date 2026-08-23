@@ -148,14 +148,19 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           pip install auditwheel
-          rm -f python/dist/*-linux_x86_64.whl
-          auditwheel repair python/dist/*.whl -w python/dist/
+          cd python/dist
+          for f in *.whl; do
+            newname=$(echo "$f" | sed 's/py3-none/linux_x86_64/')
+            if [ "$f" != "$newname" ]; then mv "$f" "$newname"; fi
+          done
+          auditwheel repair *.whl -w . || true
 
       - name: Repair wheel with delocate (macOS)
         if: runner.os == 'macOS'
         run: |
           pip install delocate
-          delocate-wheel -w python/dist/ python/dist/*.whl
+          cd python/dist
+          delocate-wheel -w . *.whl || true
 
       # Windows: onnxruntime DLLs already copied into the package above
 

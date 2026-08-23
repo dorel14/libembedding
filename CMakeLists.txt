@@ -31,9 +31,12 @@ option(LIBEMBEDDING_BUILD_SHARED    "Build shared library for bindings"       OF
 # =========================================================================
 
 if(WIN32)
-    # Allow overriding bundled third_party paths via cache variables
-    # (e.g. for CI builds using vcpkg instead of MinGW .dll.a)
-    if(NOT ONNXRuntime_INCLUDE_DIR)
+    # Allow overriding bundled third_party paths via environment variable
+    # (e.g. for CI builds downloading onnxruntime from GitHub releases)
+    if(DEFINED ENV{ONNXRUNTIME_ROOT})
+        set(ONNXRuntime_INCLUDE_DIR "$ENV{ONNXRUNTIME_ROOT}/include")
+        set(ONNXRuntime_LIBRARY "$ENV{ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
+    elseif(NOT ONNXRuntime_INCLUDE_DIR)
         set(ONNXRuntime_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/include")
     endif()
     if(NOT ONNXRuntime_LIBRARY)
