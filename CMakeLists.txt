@@ -61,7 +61,6 @@ if(WIN32)
     # Désactiver globalement les macros min/max conflictuelles de Windows
     add_compile_definitions(NOMINMAX)
 else()
-    find_package(ONNXRuntime REQUIRED)
     find_package(CURL REQUIRED)
 endif()
 

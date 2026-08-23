@@ -1,4 +1,4 @@
-name: Semantic Release
+name: Release
 
 on:
   push:
@@ -6,16 +6,37 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # needed to push tags and create releases
-  id-token: write  # needed for PyPI trusted publishing (if enabled)
+  contents: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  build:
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/build-wheel.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux-x86_64
+            python: "3.12"
+          - os: macos-14
+            name: macos-arm64
+            python: "3.12"
+          - os: macos-13
+            name: macos-x86_64
+            python: "3.12"
+          - os: windows-2022
+            name: windows-x86_64
+            python: "3.12"
+
+  version:
     name: Semantic Release
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       released: ${{ steps.semantic.outputs.released }}
@@ -46,3 +67,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: semantic-release publish 2>&1
+
+  publish:
+    name: Publish to PyPI
+    needs: version
+    runs-on: ubuntu-latest
+    if: needs.version.outputs.released == 'true'
+    environment: pypi
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+          path: dist/
+
+      - name: List downloaded wheels
+        run: ls -la dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
