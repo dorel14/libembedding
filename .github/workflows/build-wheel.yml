@@ -207,6 +207,7 @@ jobs:
 
       # ── Install wheel and run tests ──────────────────────────────
       - name: Install wheel and run tests
+        shell: bash
         run: |
           cd python
           pip install dist/*.whl
