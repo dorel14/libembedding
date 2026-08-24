@@ -74,7 +74,7 @@ testpaths = ["tests"]
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
-commit_version_number = true
+commit_version_number = false
 tag_format = "v{version}"
 version_variables = []
 upload_to_pypi = false
