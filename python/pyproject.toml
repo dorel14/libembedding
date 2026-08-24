@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "libembedding-ng"
-version = "0.2.0"
+version = "0.1.0"
 description = "Fast ONNX-based text, image, and sparse embeddings for Python. 5-8x faster than fastembed."
 readme = "README.md"
 license = "MIT"
@@ -77,6 +77,7 @@ version_toml = ["pyproject.toml:project.version"]
 commit_version_number = false
 tag_format = "v{version}"
 version_variables = []
+initial_version = "0.1.0"
 upload_to_pypi = false
 upload_to_release = true
 build_command = "python -m build"
