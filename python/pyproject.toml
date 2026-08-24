@@ -71,3 +71,21 @@ libembedding = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+commit_version_number = true
+tag_format = "v{version}"
+version_variables = []
+upload_to_pypi = false
+upload_to_release = true
+build_command = "python -m build"
+commit_message = "chore(release): {version} [skip ci]"
+
+[tool.semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+exclude_commit_patterns = ["^chore\\(release\\):"]
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
