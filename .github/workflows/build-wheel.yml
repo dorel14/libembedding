@@ -194,11 +194,7 @@ jobs:
         run: |
           pip install auditwheel
           cd python/dist
-          for f in *.whl; do
-            newname=$(echo "$f" | sed 's/py3-none/linux_x86_64/')
-            if [ "$f" != "$newname" ]; then mv "$f" "$newname"; fi
-          done
-          auditwheel repair *.whl -w . || true
+          auditwheel repair *.whl -w .
 
       - name: Repair wheel with delocate (macOS)
         if: runner.os == 'macOS'
