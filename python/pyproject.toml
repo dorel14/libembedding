@@ -80,7 +80,7 @@ version_variables = ["pyproject.toml:project.version"]
 initial_version = "0.1.0"
 upload_to_pypi = false
 upload_to_release = false
-build_command = false
+build_command = "true"
 
 [tool.semantic_release.branches.main]
 match = "main"
