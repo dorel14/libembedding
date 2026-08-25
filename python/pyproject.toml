@@ -71,3 +71,17 @@ libembedding = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+commit_version_number = true
+tag_format = "v{version}"
+version_variables = ["pyproject.toml:project.version"]
+initial_version = "0.1.0"
+build_command = "python -m build"
+upload_to_pypi = false
+upload_to_release = true
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
