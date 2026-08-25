@@ -9,10 +9,6 @@ permissions:
   contents: write
   id-token: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -34,47 +30,42 @@ jobs:
             name: windows-x86_64
             python: "3.12"
 
-  version:
-    name: Semantic Release
+  release:
+    name: Tag, GitHub Release & Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    outputs:
-      released: ${{ steps.semantic.outputs.released }}
-      version: ${{ steps.semantic.outputs.version }}
+    environment: pypi
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - name: Checkout full history
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          fetch-tags: true
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Configure git
+      - name: Read version from pyproject.toml
+        id: version
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION=$(grep -m1 '^version' python/pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION  ->  Tag: v$VERSION"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install python-semantic-release
-        run: pip install python-semantic-release
-
-      - name: Run semantic-release
-        id: semantic
+      - name: Create and push git tag
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: semantic-release publish 2>&1
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally"
+          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists remotely"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
 
-  publish:
-    name: Publish to PyPI
-    needs: version
-    runs-on: ubuntu-latest
-    if: needs.version.outputs.released == 'true'
-    environment: pypi
-    steps:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
@@ -82,8 +73,20 @@ jobs:
           merge-multiple: true
           path: dist/
 
-      - name: List downloaded wheels
+      - name: List wheels
         run: ls -la dist/
 
-      - name: Publish to PyPI
+      - name: Create GitHub release
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, uploading assets only"
+            gh release upload "$TAG" dist/*.whl --clobber
+          else
+            gh release create "$TAG" dist/*.whl --title "$VERSION" --generate-notes
+          fi
+
+      - name: Publish to PyPI (OIDC trusted publisher)
         uses: pypa/gh-action-pypi-publish@release/v1
