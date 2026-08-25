@@ -10,83 +10,13 @@ permissions:
   id-token: write
 
 jobs:
-  # 1) Determine the next version and create the tag + GitHub release.
-  version:
-    name: Version & Tag
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install python-semantic-release
-        run: pip install pydantic==1.10.12 python-semantic-release==9.4.0
-
-      - name: Determine release version
-        id: version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: python
-        run: |
-          VERSION="$(python -m semantic_release version --print)"
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            # Skip if the tag already exists (nothing new to release)
-            if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
-              echo "Tag v${VERSION} already exists — nothing to release"
-            else
-              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-              echo "Detected version: ${VERSION}"
-            fi
-          else
-            echo "No release required: ${VERSION}"
-          fi
-
-      - name: Skip if release commit
-        id: skip
-        run: |
-          LAST_MSG="$(git log -1 --pretty=%B)"
-          if echo "$LAST_MSG" | grep -qE '^chore\(release\):'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Release (tag + GitHub release)
-        if: steps.version.outputs.version != '' && steps.skip.outputs.skip != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        working-directory: python
-        run: |
-          TAG="v${VERSION}"
-          if git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
-            echo "Tag $TAG already exists remotely"
-          else
-            python -m semantic_release version --vcs-release
-          fi
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title "$VERSION" --generate-notes
-          fi
-
-  # 2) Rebuild the wheels against the new tag so the wheel version matches the tag.
-  build-wheels:
-    name: Build release wheels (${{ matrix.name }})
-    needs: version
-    if: needs.version.outputs.version != ''
+  # 1) Build wheels on all platforms (for testing)
+  build:
+    name: ${{ matrix.name }}
     uses: ./.github/workflows/build-wheel.yml
     with:
       os: ${{ matrix.os }}
       python: ${{ matrix.python }}
-      ref: v${{ needs.version.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -101,7 +31,91 @@ jobs:
             name: windows-x86_64
             python: "3.12"
 
-  # 3) Publish all wheels to PyPI.
+  # 2) Read version from pyproject.toml, create tag + GitHub release
+  version:
+    name: Version & Tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' python/pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION  ->  Tag: v$VERSION"
+
+      - name: Skip if release commit
+        id: skip
+        run: |
+          LAST_MSG="$(git log -1 --pretty=%B)"
+          if echo "$LAST_MSG" | grep -qE '^chore\(release\):'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push git tag
+        if: steps.skip.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally"
+          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists remotely"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub release
+        if: steps.skip.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+          else
+            gh release create "$TAG" --title "$VERSION" --generate-notes
+          fi
+
+  # 3) Rebuild wheels against the new tag (version matches tag)
+  build-wheels:
+    name: Build release wheels (${{ matrix.name }})
+    needs: version
+    if: needs.version.outputs.version != ''
+    uses: ./.github/workflows/build-wheel.yml
+    with:
+      os: ${{ matrix.os }}
+      python: ${{ matrix.python }}
+      ref: ${{ needs.version.outputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux-x86_64
+            python: "3.12"
+          - os: macos-14
+            name: macos-arm64
+            python: "3.12"
+          - os: windows-2022
+            name: windows-x86_64
+            python: "3.12"
+
+  # 4) Publish all wheels to PyPI via trusted token
   publish:
     name: Publish to PyPI
     needs: build-wheels
@@ -118,7 +132,7 @@ jobs:
       - name: List wheels
         run: ls -la dist/
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (OIDC trusted publisher with PYPI_TOKEN fallback)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
