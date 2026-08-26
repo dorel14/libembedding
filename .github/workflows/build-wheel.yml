@@ -239,14 +239,21 @@ jobs:
         shell: bash
         run: |
           cd python
-          # Install only the repaired wheel for the current platform
+          # Find and install the repaired wheel for the current platform
           if [ "$(uname)" = "Linux" ]; then
-            pip install dist/*manylinux*.whl
+            WHEEL=$(ls dist/*manylinux*.whl 2>/dev/null | head -1)
           elif [ "$(uname)" = "Darwin" ]; then
-            pip install dist/*macosx*.whl
+            WHEEL=$(ls dist/*macosx*.whl 2>/dev/null | head -1)
           else
-            pip install dist/*win*.whl
+            WHEEL=$(ls dist/*win*.whl 2>/dev/null | head -1)
           fi
+          if [ -z "$WHEEL" ]; then
+            echo "No matching wheel found"
+            ls -la dist/
+            exit 1
+          fi
+          echo "Installing $WHEEL"
+          pip install "$WHEEL"
           pytest tests/ -v --timeout=120
 
       # ── Upload wheel as artifact ────────────────────────────────
