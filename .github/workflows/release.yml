@@ -29,8 +29,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install python-semantic-release (with pydantic v1 for compat)
-        run: pip install pydantic==1.10.12 python-semantic-release==9.4.0
+      - name: Install python-semantic-release
+        run: pip install python-semantic-release==9.4.0
 
       - name: Determine release version
         id: version
