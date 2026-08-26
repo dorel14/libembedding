@@ -256,10 +256,13 @@ jobs:
           pip install "$WHEEL"
           pytest tests/ -v --timeout=120
 
-      # ── Upload wheel as artifact ────────────────────────────────
-      - name: Upload wheel artifact
+      # ── Upload repaired wheel as artifact ─────────────────────────────
+      - name: Upload repaired wheel artifact
         uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ inputs.os }}
-          path: python/dist/*.whl
           if-no-files-found: error
+          path: |
+            python/dist/*manylinux*.whl
+            python/dist/*macosx*.whl
+            python/dist/*win*.whl
