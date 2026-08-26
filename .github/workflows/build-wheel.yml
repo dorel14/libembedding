@@ -227,7 +227,12 @@ jobs:
 
       - name: List wheel contents
         shell: bash
-        run: python -m zipfile -l python/dist/*.whl
+        run: |
+          cd python/dist
+          for f in *.whl; do
+            echo "=== $f ==="
+            python -m zipfile -l "$f"
+          done
 
       # ── Install wheel and run tests ──────────────────────────────
       - name: Install wheel and run tests
