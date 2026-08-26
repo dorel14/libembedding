@@ -239,7 +239,8 @@ jobs:
         shell: bash
         run: |
           cd python
-          pip install dist/*.whl
+          # Install only the repaired (manylinux) wheel, not the original
+          pip install dist/*manylinux*.whl
           pytest tests/ -v --timeout=120
 
       # ── Upload wheel as artifact ────────────────────────────────
