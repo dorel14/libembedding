@@ -192,6 +192,14 @@ jobs:
       - name: Repair wheel with auditwheel (Linux)
         if: runner.os == 'Linux'
         run: |
+          # Install newer patchelf (>=0.14.5) for auditwheel 6.8+
+          wget -q https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0.tar.gz
+          tar xzf patchelf-0.18.0.tar.gz
+          cd patchelf-0.18.0
+          ./configure --prefix=/usr/local
+          make -j$(nproc)
+          sudo make install
+          cd ..
           pip install auditwheel
           cd python/dist
           auditwheel repair *.whl -w .
