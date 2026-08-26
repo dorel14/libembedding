@@ -10,9 +10,30 @@ permissions:
   id-token: write
 
 jobs:
-  # 1) semantic-release: determine version, bump pyproject.toml, create tag + GitHub release
+  # 1) Build wheels on all platforms (for testing)
+  build:
+    name: ${{ matrix.name }}
+    uses: ./.github/workflows/build-wheel.yml
+    with:
+      os: ${{ matrix.os }}
+      python: ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux-x86_64
+            python: "3.12"
+          - os: macos-14
+            name: macos-arm64
+            python: "3.12"
+          - os: windows-2022
+            name: windows-x86_64
+            python: "3.12"
+
+  # 2) Read version from pyproject.toml, create tag + GitHub release
   version:
-    name: Version & Release
+    name: Version & Tag
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -25,42 +46,52 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install python-semantic-release
-        run: pip install python-semantic-release
-
-      - name: Determine release version
+      - name: Read version from pyproject.toml
         id: version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: python
         run: |
-          VERSION="$(python -m semantic_release version --print)"
-          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            # Skip if tag already exists
-            if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
-              echo "Tag v${VERSION} already exists — skipping"
-            else
-              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-              echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-              echo "Detected version: ${VERSION}"
-            fi
+          VERSION=$(grep -m1 '^version' python/pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION  ->  Tag: v$VERSION"
+
+      - name: Skip if release commit
+        id: skip
+        run: |
+          LAST_MSG="$(git log -1 --pretty=%B)"
+          if echo "$LAST_MSG" | grep -qE '^chore\(release\):'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No release required: ${VERSION}"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create release (bumps pyproject.toml, creates tag + GitHub release)
-        if: steps.version.outputs.version != ''
+      - name: Create and push git tag
+        if: steps.skip.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists locally"
+          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists remotely"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub release
+        if: steps.skip.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
-        working-directory: python
-        run: python -m semantic_release version --vcs-release
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+          else
+            gh release create "$TAG" --title "$VERSION" --generate-notes
+          fi
 
-  # 2) Rebuild wheels against the new tag (version matches tag)
+  # 3) Rebuild wheels against the new tag (version matches tag)
   build-wheels:
     name: Build release wheels (${{ matrix.name }})
     needs: version
@@ -84,7 +115,7 @@ jobs:
             name: windows-x86_64
             python: "3.12"
 
-  # 3) Publish all wheels to PyPI using PYPI_TOKEN
+  # 4) Publish all wheels to PyPI via PYPI_TOKEN
   publish:
     name: Publish to PyPI
     needs: build-wheels
