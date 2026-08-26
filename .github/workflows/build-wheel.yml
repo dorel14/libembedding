@@ -239,11 +239,13 @@ jobs:
         shell: bash
         run: |
           cd python
-          # Install only the repaired wheel (manylinux on Linux, macosx on macOS)
+          # Install only the repaired wheel for the current platform
           if [ "$(uname)" = "Linux" ]; then
             pip install dist/*manylinux*.whl
-          else
+          elif [ "$(uname)" = "Darwin" ]; then
             pip install dist/*macosx*.whl
+          else
+            pip install dist/*win*.whl
           fi
           pytest tests/ -v --timeout=120
 
