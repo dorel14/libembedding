@@ -1,2 +1,89 @@
 add_executable(bench_libembedding bench_libembedding.cpp)
 target_link_libraries(bench_libembedding PRIVATE libembedding)
+
+add_executable(quick_bench quick_bench.cpp)
+target_link_libraries(quick_bench PRIVATE libembedding)
+target_compile_definitions(quick_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(bench_cached bench_cached.cpp)
+target_link_libraries(bench_cached PRIVATE libembedding)
+target_compile_definitions(bench_cached PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(profile_bench profile_bench.cpp)
+target_link_libraries(profile_bench PRIVATE libembedding)
+target_compile_definitions(profile_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(detail_profile detail_profile.cpp)
+target_link_libraries(detail_profile PRIVATE libembedding)
+target_compile_definitions(detail_profile PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(token_profile token_profile.cpp)
+target_link_libraries(token_profile PRIVATE libembedding)
+target_compile_definitions(token_profile PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(memcpy_profile memcpy_profile.cpp)
+target_link_libraries(memcpy_profile PRIVATE libembedding)
+target_compile_definitions(memcpy_profile PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(parallel_profile parallel_profile.cpp)
+target_link_libraries(parallel_profile PRIVATE libembedding)
+target_compile_definitions(parallel_profile PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(inference_profile inference_profile.cpp)
+target_link_libraries(inference_profile PRIVATE libembedding)
+target_compile_definitions(inference_profile PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(optimal_profile optimal_profile.cpp)
+target_link_libraries(optimal_profile PRIVATE libembedding)
+target_compile_definitions(optimal_profile PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(matrix_bench matrix_bench.cpp)
+target_link_libraries(matrix_bench PRIVATE libembedding)
+target_compile_definitions(matrix_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(minilm_bench minilm_bench.cpp)
+target_link_libraries(minilm_bench PRIVATE libembedding)
+target_compile_definitions(minilm_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(model_compare model_compare.cpp)
+target_link_libraries(model_compare PRIVATE libembedding)
+
+add_executable(verify_bench verify_bench.cpp)
+target_link_libraries(verify_bench PRIVATE libembedding)
+target_compile_definitions(verify_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(repro_bench repro_bench.cpp)
+target_link_libraries(repro_bench PRIVATE libembedding)
+target_compile_definitions(repro_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(long_bench long_bench.cpp)
+target_link_libraries(long_bench PRIVATE libembedding)
+target_compile_definitions(long_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(prod_bench prod_bench.cpp)
+target_link_libraries(prod_bench PRIVATE libembedding)
+target_compile_definitions(prod_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(robustness_bench robustness_bench.cpp)
+target_link_libraries(robustness_bench PRIVATE libembedding)
+target_compile_definitions(robustness_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(rigorous_bench rigorous_bench.cpp)
+target_link_libraries(rigorous_bench PRIVATE libembedding)
+target_compile_definitions(rigorous_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(stress_mem stress_mem.cpp)
+target_link_libraries(stress_mem PRIVATE libembedding)
+target_compile_definitions(stress_mem PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(debug_consistency debug_consistency.cpp)
+target_link_libraries(debug_consistency PRIVATE libembedding)
+target_compile_definitions(debug_consistency PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(fair_compare fair_compare.cpp)
+target_link_libraries(fair_compare PRIVATE libembedding)
+target_compile_definitions(fair_compare PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(long_text_bench long_text_bench.cpp)
+target_link_libraries(long_text_bench PRIVATE libembedding)
+target_compile_definitions(long_text_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)

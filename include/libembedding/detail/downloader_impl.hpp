@@ -277,7 +277,9 @@ inline std::string get_cache_dir(const char* override_dir = nullptr) {
     if (override_dir && override_dir[0]) return override_dir;
     const char* env = std::getenv("LIBEMBEDDING_CACHE_DIR");
     if (env && env[0]) return env;
-    const char* home = std::getenv("HOME");
+    /* Try Windows USERPROFILE first, then Unix HOME */
+    const char* home = std::getenv("USERPROFILE");
+    if (!home) home = std::getenv("HOME");
     if (!home) home = "/tmp";
     return std::string(home) + "/.cache/libembedding";
 }
