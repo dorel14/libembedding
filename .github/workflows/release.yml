@@ -129,7 +129,7 @@ jobs:
   # -----------------------------------------------------------------------
   publish:
     name: Publish to PyPI
-    needs: build
+    needs: [version, build]
     if: always() && needs.build.result == 'success' && needs.version.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -147,6 +147,11 @@ jobs:
         id: check
         run: |
           VERSION="${{ needs.version.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            echo "VERSION output is empty, cannot check PyPI."
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           CODE="$(curl -s -o /dev/null -w "%{http_code}" \
             "https://pypi.org/pypi/libembedding-ng/${VERSION}/json")"
           if [ "$CODE" = "200" ]; then
