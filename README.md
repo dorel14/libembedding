@@ -1,10 +1,20 @@
 # libembedding
 
+> **Forked from [pacifio/libembedding](https://github.com/pacifio/libembedding).**
+> This fork extends the original C/C++ core with **Windows support (native DLL)**,
+> **PyPI packaging under the name `libembedding-ng`**, local model loading, runtime
+> introspection (`stats()` / `desc()`), similarity helpers, streaming embeddings, a
+> multi-worker pool, an autotuner and automatic model selection. See
+> [CHANGELOG.md](CHANGELOG.md) for the full history.
+
 A fast embedding library with both **C/C++** and **Python** APIs for generating text embeddings, sparse embeddings, image embeddings, and document reranking using ONNX Runtime. **5-8x faster than fastembed** with 3.5x less memory.
 
 ```bash
-pip install libembedding
+pip install libembedding-ng
 ```
+
+> The PyPI package is published as **`libembedding-ng`** to avoid clashing with the
+> original `libembedding` project on PyPI. The Python import name remains `libembedding`.
 
 Inspired by [fastembed](https://github.com/qdrant/fastembed) (Python) and [fastembed-rs](https://github.com/qdrant/fastembed-rs) (Rust).
 
@@ -38,18 +48,25 @@ lembed_text_embedding_free(embedder);
 
 ## Features
 
-- **44 text embedding models** (BGE, MiniLM, Nomic, E5, CLIP, Jina, GTE, Snowflake, etc.)
+- **44 text embedding models** (BGE, MiniLM, Nomic, E5, CLIP, Jina, GTE, Snowflake, ModernBERT, EmbeddingGemma, etc.)
 - **2 sparse embedding models** (SPLADE++, BGE-M3)
 - **5 image embedding models** (CLIP ViT-B-32, ResNet-50, Unicom, Nomic Vision)
 - **4 reranker models** (BGE Reranker, Jina Reranker)
-- **Python bindings** via `pip install libembedding` -- drop-in fastembed replacement
+- **Python bindings** via `pip install libembedding-ng` -- drop-in fastembed replacement
 - Automatic model downloading and caching from HuggingFace Hub
 - Pure C API (`extern "C"`) for maximum FFI compatibility
-- Header-only (STB-style `#define LIBEMBEDDING_IMPLEMENTATION`)
+- **Dual distribution**: header-only `INTERFACE` library on Linux/macOS (STB-style `#define LIBEMBEDDING_IMPLEMENTATION`), plus a **compiled shared library** for FFI/bindings and a native **Windows DLL** (built by CMake, exposed to Python through cffi)
 - CLS and Mean pooling with L2 normalization
 - Batch processing with configurable batch sizes
-- CPU, CUDA, CoreML, DirectML execution providers
+- CPU, CUDA, CoreML, DirectML, TensorRT execution providers
 - Custom/user-defined model support (bring your own ONNX)
+- Local model loading from a directory (`model.onnx` + `tokenizer.json`, optional `config.json`)
+- Runtime introspection: `desc()`, `model_name()`, `max_length()`, `stats()` (texts, batches, latency)
+- Similarity helpers: cosine, dot product, euclidean distance
+- Streaming embeddings (`embed_stream`) for constant-memory processing of large corpora
+- Multi-worker `TextEmbeddingPool` (inter-session parallelism, up to ~4x throughput)
+- Autotuner and automatic model selection for optimal CPU configuration
+- Offline mode (cache-only, no downloads)
 
 ## Requirements
 
@@ -69,7 +86,7 @@ No Rust toolchain required. The tokenizer is implemented natively in C++ (suppor
 ### Python
 
 ```bash
-pip install libembedding
+pip install libembedding-ng
 ```
 
 ```python
@@ -128,18 +145,22 @@ cmake --build . --parallel
 
 ### Step 1: Add to Your Project
 
-libembedding is header-only. Copy the `include/libembedding/` directory into your project, or use CMake's `FetchContent`:
+libembedding ships as a **header-only `INTERFACE` library** on Linux/macOS (copy `include/libembedding/` or use `FetchContent`) and as a **compiled shared library / DLL** on Windows and for the Python bindings. Copy the `include/libembedding/` directory into your project, or use CMake's `FetchContent`:
 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(libembedding
-    GIT_REPOSITORY https://github.com/yourorg/libembedding
+    GIT_REPOSITORY https://github.com/dorel14/libembedding
     GIT_TAG main
 )
 FetchContent_MakeAvailable(libembedding)
 
 target_link_libraries(your_app PRIVATE libembedding::libembedding)
 ```
+
+> This is the maintained fork. The original upstream is
+> [pacifio/libembedding](https://github.com/pacifio/libembedding). On Windows, link
+> against the built `libembedding.dll` instead of compiling the implementation inline.
 
 Or with an existing checkout:
 
@@ -176,7 +197,7 @@ void my_function(void) {
 }
 ```
 
-> **Note:** Files that `#define LIBEMBEDDING_IMPLEMENTATION` must be compiled as C++ (`.cpp`). Files that only call the C API functions (without the implementation define) can be plain C.
+> **Note:** On Linux/macOS, files that `#define LIBEMBEDDING_IMPLEMENTATION` must be compiled as C++ (`.cpp`); files that only call the C API (without the implementation define) can be plain C. On Windows, libembedding is consumed as a prebuilt `libembedding.dll` (built by CMake) and linked through its import library / cffi bindings, so no in-project implementation file is required.
 
 ## C API Reference
 
@@ -609,7 +630,7 @@ float dist = lembed_euclidean_distance(vec_a, vec_b, dim);
 
 ```c
 #include <libembedding/config.h>
-const char* version = lembed_version();  /* e.g. "0.3.0" */
+const char* version = lembed_version();  /* e.g. "0.2.0" */
 ```
 
 ---

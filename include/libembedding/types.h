@@ -1,5 +1,5 @@
 /*
- * libembedding - C Header-Only Embedding Library
+ * libembedding - C/C++ Embedding Library (header-only on Linux/macOS, shared lib/DLL on Windows)
  * types.h - Core types, opaque handles, enums, output structures
  *
  * SPDX-License-Identifier: MIT

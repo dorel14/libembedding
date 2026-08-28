@@ -41,7 +41,7 @@ TextEmbedding(
 | `dim` | `int` | `0` | Embedding dimension for local models without `config.json` |
 | `pooling` | `str` | `"mean"` | Pooling strategy for local models: `"cls"` or `"mean"` |
 | `num_threads` | `int \| None` | `None` | **Deprecated** — use `threads` instead |
-| `autotune` | `bool` | `False` | `True` = auto-tune `threads` and `batch_size` for best performance. See [performance_tuning.md](performance_tuning.md) |
+| `autotune` | `bool` | `False` | `True` = auto-tune `threads` and `batch_size` for best performance. See [performance_tuning.html](performance_tuning.html) |
 | `autotune_texts` | `list[str] \| None` | `None` | Custom corpus for autotune (more accurate than synthetic corpus) |
 | `autotune_max_samples` | `int` | `100` | Maximum texts to sample from corpus for autotune |
 
@@ -245,7 +245,7 @@ for r in ranked:
 
 ### TextEmbeddingPool
 
-Pool of ONNX sessions for inter-session parallelism. See [performance_tuning.md](performance_tuning.md).
+Pool of ONNX sessions for inter-session parallelism. See [performance_tuning.html](performance_tuning.html).
 
 ```python
 class TextEmbeddingPool:

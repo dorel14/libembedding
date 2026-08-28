@@ -1,16 +1,26 @@
 # libembedding
 
+> **Forked from [pacifio/libembedding](https://github.com/pacifio/libembedding).**
+> This fork adds Windows support (native DLL), PyPI packaging under the name
+> **`libembedding-ng`**, local model loading, runtime introspection, similarity
+> helpers, streaming, a multi-worker pool, an autotuner and automatic model
+> selection. Imported as `libembedding`.
+
 Fast ONNX-based text, image, and sparse embeddings for Python. **5-8x faster than fastembed** with 3.5x less memory.
 
-Built on a C/C++ backend using ONNX Runtime, exposed to Python via zero-overhead cffi bindings. Supports 44 text embedding models, 5 image models, 2 sparse models, and 4 rerankers with automatic model downloading from HuggingFace Hub.
+Built on a C/C++ backend using ONNX Runtime, exposed to Python via zero-overhead cffi bindings. The wheel bundles the **compiled shared library** (`libembedding.so` / `.dylib` / `.dll`) together with ONNX Runtime and libcurl, so no system ONNX Runtime install is required at runtime. Supports 44 text embedding models, 5 image models, 2 sparse models, and 4 rerankers with automatic model downloading from HuggingFace Hub.
 
 ## Installation
 
 ```bash
-pip install libembedding
+pip install libembedding-ng
 ```
 
-**Requirements:** ONNX Runtime must be installed on your system.
+> The PyPI package is named **`libembedding-ng`** (to avoid clashing with the original
+> `libembedding` on PyPI); it is imported as `libembedding`. The wheel already bundles the
+> native shared library and ONNX Runtime, so no separate system install is required.
+
+**Requirements:** ONNX Runtime must be installed on your system **only if** you build the package from source.
 
 ```bash
 # macOS
@@ -284,11 +294,11 @@ cd python/
 python -m build
 ```
 
-This produces files in `dist/`:
+This produces files in `dist/` (versions follow the `libembedding-ng` package, e.g. `1.1.1`):
 ```
 dist/
-  libembedding-0.2.0.tar.gz              # source distribution
-  libembedding-0.2.0-py3-none-any.whl    # wheel (includes bundled .dylib/.so)
+  libembedding_ng-1.1.1.tar.gz                                # source distribution
+  libembedding_ng-1.1.1-cp39-abi3-manylinux_2_28_x86_64.whl  # platform wheel (bundles libembedding.so + onnxruntime)
 ```
 
 ### Upload to PyPI
@@ -312,7 +322,7 @@ twine upload dist/*
 
 ### Platform-specific wheels
 
-The default wheel is `py3-none-any` and bundles the shared library for the build platform. To build platform-tagged wheels for distribution:
+The wheel is **platform-tagged** (e.g. `manylinux`, `macosx`, `win_amd64`) because it bundles the compiled shared library (`libembedding.so` / `.dylib` / `.dll`) along with ONNX Runtime and libcurl. `python -m build` produces a wheel for the current build platform. To build wheels for other platforms, build on that platform or use cibuildwheel:
 
 ```bash
 # macOS (current arch)

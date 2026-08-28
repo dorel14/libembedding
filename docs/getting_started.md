@@ -3,8 +3,10 @@
 ## Installation
 
 ```bash
-pip install libembedding
+pip install libembedding-ng
 ```
+
+> Le paquet PyPI est **`libembedding-ng`** (importé en Python sous le nom `libembedding`).
 
 ## Prérequis
 
@@ -110,4 +112,4 @@ with TextEmbedding("BAAI/bge-small-en-v1.5") as model:
 
 ## Exemple complet
 
-Voir [examples/python/example.py](../examples/python/example.py) pour un exemple détaillé avec recherche sémantique.
+Voir [examples/python/example.py](https://github.com/dorel14/libembedding/blob/main/examples/python/example.py) pour un exemple détaillé avec recherche sémantique.

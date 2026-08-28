@@ -1,3 +1,6 @@
+# Semantic-release configuration for the libembedding project.
+# Forked from https://github.com/pacifio/libembedding.
+# The Python package is published on PyPI as `libembedding-ng` (see python/pyproject.toml).
 [tool.semantic_release]
 version_toml = [
     "python/pyproject.toml:project.version",

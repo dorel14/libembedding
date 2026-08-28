@@ -2,17 +2,20 @@
 
 Welcome to the **libembedding** documentation, a fast embedding library with both **C/C++** and **Python** APIs powered by ONNX Runtime.
 
+> **Forked from [pacifio/libembedding](https://github.com/pacifio/libembedding).**
+> This fork adds Windows support (native DLL), PyPI packaging as `libembedding-ng`, local model loading, runtime introspection, similarity helpers, streaming, a multi-worker pool, an autotuner and automatic model selection.
+
 ## Documentation structure
 
 | Section | File | Description |
 |---------|------|-------------|
-| **Getting started** | [getting_started.md](getting_started.md) | Installation, prerequisites and quick start |
-| **Python API** | [api_reference.md](api_reference.md) | Complete reference of Python classes |
-| **Models** | [models.md](models.md) | Catalog of available models (text, image, sparse, reranker) |
-| **Performance** | [performance_tuning.md](performance_tuning.md) | Session pool, auto-tuning, automatic model selection |
-| **Advanced usage** | [advanced_usage.md](advanced_usage.md) | Local models, providers, cache, offline mode, context managers |
-| **Error handling** | [api_reference.md#error-handling](api_reference.md#error-handling) | Python exception hierarchy |
-| **Français** | [../index.md](../index.md) | Documentation française |
+| **Getting started** | [getting_started.html](getting_started.html) | Installation, prerequisites and quick start |
+| **Python API** | [api_reference.html](api_reference.html) | Complete reference of Python classes |
+| **Models** | [models.html](models.html) | Catalog of available models (text, image, sparse, reranker) |
+| **Performance** | [performance_tuning.html](performance_tuning.html) | Session pool, auto-tuning, automatic model selection |
+| **Advanced usage** | [advanced_usage.html](advanced_usage.html) | Local models, providers, cache, offline mode, context managers |
+| **Error handling** | [api_reference.html#error-handling](api_reference.html#error-handling) | Python exception hierarchy |
+| **Français** | [../index.html](../index.html) | Documentation française |
 
 ## Overview
 

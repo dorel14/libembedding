@@ -1,3 +1,6 @@
+# libembedding-ng — Python bindings for libembedding
+# Forked from https://github.com/pacifio/libembedding (C/C++ ONNX embedding core).
+# Published on PyPI as `libembedding-ng`; imported as `libembedding`.
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

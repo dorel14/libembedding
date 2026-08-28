@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 cmake_policy(SET CMP0144 NEW)
 project(libembedding
     VERSION 0.2.0
-    DESCRIPTION "C header-only embedding library using ONNX Runtime"
+    DESCRIPTION "C/C++ embedding library using ONNX Runtime (header-only INTERFACE on Linux/macOS, shared library/DLL on Windows)"
     LANGUAGES C CXX
 )
 

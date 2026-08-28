@@ -1,0 +1,18 @@
+# GitHub Pages configuration (Jekyll)
+# Published from the /docs folder of the default branch ("Deploy from a branch").
+# Mirrors the setup used by dorel14/taskiq-flow.
+
+title: libembedding
+description: >-
+  Fast ONNX-based text, image, sparse embeddings and document reranking
+  for C/C++ and Python. Fork of pacifio/libembedding, published on PyPI
+  as libembedding-ng.
+
+# Built-in GitHub Pages theme (no plugins required).
+theme: jekyll-theme-minimal
+
+# Project page lives at https://dorel14.github.io/libembedding/
+baseurl: "/libembedding"
+
+# Build the whole docs tree (including the en/ subfolder).
+exclude: []

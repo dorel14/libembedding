@@ -1,5 +1,5 @@
 /*
- * libembedding - C Header-Only Embedding Library
+ * libembedding - C/C++ Embedding Library (header-only on Linux/macOS, shared lib/DLL on Windows)
  * config.h - Version and feature configuration
  *
  * SPDX-License-Identifier: MIT
