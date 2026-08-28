@@ -87,3 +87,7 @@ target_compile_definitions(fair_compare PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
 add_executable(long_text_bench long_text_bench.cpp)
 target_link_libraries(long_text_bench PRIVATE libembedding)
 target_compile_definitions(long_text_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+add_executable(autotuner_test autotuner_test.cpp)
+target_link_libraries(autotuner_test PRIVATE libembedding)
+target_compile_definitions(autotuner_test PRIVATE LIBEMBEDDING_NO_DOWNLOAD)

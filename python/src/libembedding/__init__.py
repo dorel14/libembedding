@@ -6,11 +6,11 @@ try:
 except PackageNotFoundError:
     __version__ = "0.0.0"
 
-from .text_embedding import TextEmbedding, TextEmbeddingPool
+from .text_embedding import TextEmbedding, TextEmbeddingPool, autotune, auto_select_model, clear_autotune_cache
 from .sparse_text_embedding import SparseTextEmbedding
 from .image_embedding import ImageEmbedding
 from .reranker import Reranker
-from .types import SparseEmbedding, RerankResult, ModelInfo, ModelDesc, Stats
+from .types import SparseEmbedding, RerankResult, ModelInfo, ModelDesc, Stats, TuningResult, ModelSelectionResult
 from .models import (
     list_text_models,
     list_sparse_models,
@@ -30,6 +30,9 @@ except Exception:
 __all__ = [
     "TextEmbedding",
     "TextEmbeddingPool",
+    "autotune",
+    "auto_select_model",
+    "clear_autotune_cache",
     "SparseTextEmbedding",
     "ImageEmbedding",
     "Reranker",
@@ -38,6 +41,7 @@ __all__ = [
     "ModelInfo",
     "ModelDesc",
     "Stats",
+    "TuningResult",
     "list_text_models",
     "list_sparse_models",
     "list_image_models",

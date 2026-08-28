@@ -41,6 +41,9 @@ TextEmbedding(
 | `dim` | `int` | `0` | Embedding dimension for local models without `config.json` |
 | `pooling` | `str` | `"mean"` | Pooling strategy for local models: `"cls"` or `"mean"` |
 | `num_threads` | `int \| None` | `None` | **Deprecated** — use `threads` instead |
+| `autotune` | `bool` | `False` | `True` = auto-tune `threads` and `batch_size` for best performance. See [performance_tuning.md](performance_tuning.md) |
+| `autotune_texts` | `list[str] \| None` | `None` | Custom corpus for autotune (more accurate than synthetic corpus) |
+| `autotune_max_samples` | `int` | `100` | Maximum texts to sample from corpus for autotune |
 
 #### Methods and properties
 
@@ -239,6 +242,76 @@ for r in ranked:
 ---
 
 ## Data types
+
+### TextEmbeddingPool
+
+Pool of ONNX sessions for inter-session parallelism. See [performance_tuning.md](performance_tuning.md).
+
+```python
+class TextEmbeddingPool:
+    model_name: str
+    workers: int = 0                  # number of sessions (0 = auto-detect)
+    threads_per_worker: int = 1       # threads per session
+    batch_size: int = 256
+    provider: str = "cpu"
+    offline: bool = False
+    autotune: bool = False            # auto-tune all parameters
+    autotune_texts: list[str] = None  # corpus for autotune
+    autotune_max_samples: int = 100   # max sample size
+```
+
+**Methods:**
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `embed(texts)` | `np.ndarray` | Embed texts in parallel |
+| `num_workers` | `int` (property) | Number of active workers |
+| `dim` | `int` (property) | Embedding dimension |
+| `close()` | `None` | Release resources |
+
+### TuningResult
+
+Result of autotune for a model.
+
+```python
+@dataclass(frozen=True)
+class TuningResult:
+    workers: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+```
+
+### ModelSelectionResult
+
+Result of automatic model selection.
+
+```python
+@dataclass(frozen=True)
+class ModelSelectionResult:
+    model_code: str
+    model_name: str
+    dim: int
+    workers: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+    score: float
+```
+
+### Global functions
+
+| Function | Description |
+|----------|-------------|
+| `autotune(model_name, full=False)` | Auto-tune a model. Returns `TuningResult`. |
+| `auto_select_model(use_case="balanced")` | Select best model. Returns `ModelSelectionResult`. |
+| `clear_autotune_cache(model_name=None)` | Clear autotune cache. |
+
+---
 
 ### SparseEmbedding
 

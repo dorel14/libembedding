@@ -9,6 +9,7 @@ Welcome to the **libembedding** documentation, a fast embedding library with bot
 | **Getting started** | [getting_started.md](getting_started.md) | Installation, prerequisites and quick start |
 | **Python API** | [api_reference.md](api_reference.md) | Complete reference of Python classes |
 | **Models** | [models.md](models.md) | Catalog of available models (text, image, sparse, reranker) |
+| **Performance** | [performance_tuning.md](performance_tuning.md) | Session pool, auto-tuning, automatic model selection |
 | **Advanced usage** | [advanced_usage.md](advanced_usage.md) | Local models, providers, cache, offline mode, context managers |
 | **Error handling** | [api_reference.md#error-handling](api_reference.md#error-handling) | Python exception hierarchy |
 | **Français** | [../index.md](../index.md) | Documentation française |

@@ -41,6 +41,11 @@ TextEmbedding(
 | `dim` | `int` | `0` | Dimension de l'embedding pour modèles locaux sans `config.json` |
 | `pooling` | `str` | `"mean"` | Stratégie de pooling pour modèles locaux : `"cls"` ou `"mean"` |
 | `num_threads` | `int \| None` | `None` | **Déprécié** — utiliser `threads` à la place |
+| `autotune` | `bool` | `False` | `True` = auto-tune `threads` et `batch_size` pour meilleures performances. Voir [performance_tuning.md](performance_tuning.md) |
+| `autotune_texts` | `list[str] \| None` | `None` | Corpus personnalisé pour l'autotune (plus précis que corpus synthétique) |
+| `autotune_max_samples` | `int` | `100` | Nombre max de textes échantillonnés pour l'autotune (si `autotune_texts` fourni) |
+
+#### Méthodes et propriétés
 
 #### Méthodes et propriétés
 
@@ -239,6 +244,77 @@ for r in ranked:
 ---
 
 ## Types de données
+
+### TextEmbeddingPool
+
+Pool de sessions ONNX pour le parallélisme inter-sessions. Voir [performance_tuning.md](performance_tuning.md).
+
+```python
+@dataclass(frozen=True)
+class TextEmbeddingPool:
+    model_name: str
+    workers: int = 0                  # nombre de sessions (0 = auto-detect)
+    threads_per_worker: int = 1       # threads par session
+    batch_size: int = 256
+    provider: str = "cpu"
+    offline: bool = False
+    autotune: bool = False            # auto-tune tous les paramètres
+    autotune_texts: list[str] = None  # corpus pour l'autotune
+    autotune_max_samples: int = 100   # taille d'échantillon max
+```
+
+**Méthodes :**
+
+| Membre | Type | Description |
+|--------|------|-------------|
+| `embed(texts)` | `np.ndarray` | Embed les textes en parallèle |
+| `num_workers` | `int` (property) | Nombre de workers actifs |
+| `dim` | `int` (property) | Dimension de l'embedding |
+| `close()` | `None` | Libère les ressources |
+
+### TuningResult
+
+Résultat de l'autotune pour un modèle.
+
+```python
+@dataclass(frozen=True)
+class TuningResult:
+    workers: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+```
+
+### ModelSelectionResult
+
+Résultat de la sélection automatique de modèle.
+
+```python
+@dataclass(frozen=True)
+class ModelSelectionResult:
+    model_code: str
+    model_name: str
+    dim: int
+    workers: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+    score: float
+```
+
+### Fonctions globales
+
+| Fonction | Description |
+|----------|-------------|
+| `autotune(model_name, full=False)` | Auto-tune un modèle. Retourne `TuningResult`. |
+| `auto_select_model(use_case="balanced")` | Sélectionne le meilleur modèle. Retourne `ModelSelectionResult`. |
+| `clear_autotune_cache(model_name=None)` | Efface le cache d'autotune. |
+
+---
 
 ### SparseEmbedding
 

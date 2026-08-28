@@ -9,6 +9,7 @@ Bienvenue dans la documentation de **libembedding**, une bibliothèque d'embeddi
 | **Démarrage** | [getting_started.md](getting_started.md) | Installation, prérequis et premiers pas |
 | **API Python** | [api_reference.md](api_reference.md) | Référence complète des classes Python |
 | **Modèles** | [models.md](models.md) | Catalogue des modèles disponibles (texte, image, sparse, reranker) |
+| **Performance** | [performance_tuning.md](performance_tuning.md) | Pool de sessions, auto-tuning, sélection automatique de modèle |
 | **Usage avancé** | [advanced_usage.md](advanced_usage.md) | Modèles locaux, providers, cache, mode hors-ligne, context managers |
 | **Exceptions** | [api_reference.md#gestion-des-erreurs](api_reference.md#gestion-des-erreurs) | Hiérarchie des exceptions Python |
 | **English** | [en/](en/index.md) | English documentation |

@@ -55,3 +55,31 @@ class Stats:
     texts_embedded: int
     batches_run: int
     avg_latency_ms: float
+
+
+@dataclass(frozen=True)
+class TuningResult:
+    """Result of auto-tuning for optimal performance."""
+
+    workers: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+
+
+@dataclass(frozen=True)
+class ModelSelectionResult:
+    """Result of automatic model selection."""
+
+    model_code: str
+    model_name: str
+    dim: int
+    workers: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+    score: float

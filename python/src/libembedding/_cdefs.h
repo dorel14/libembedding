@@ -317,3 +317,38 @@ float lembed_euclidean_distance(const float* a, const float* b, int dim);
 void lembed_embeddings_free(lembed_embeddings_t* result);
 void lembed_sparse_embeddings_free(lembed_sparse_embeddings_t* result);
 void lembed_rerank_results_free(lembed_rerank_results_t* result);
+
+/* Autotuner */
+typedef struct {
+    int workers;
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+} lembed_tuning_result_t;
+
+typedef enum {
+    LEMBED_AUTOTUNE_QUICK = 0,
+    LEMBED_AUTOTUNE_FULL = 1
+} lembed_autotune_mode_t;
+
+lembed_status_t lembed_autotune(const char* model_name, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
+lembed_status_t lembed_autotune_custom(const char* model_name, const char* const* texts, int n_texts, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
+void lembed_autotune_clear_cache(const char* model_name);
+
+/* Auto model selection */
+typedef struct {
+    const char* model_code;
+    const char* model_name;
+    int dim;
+    int workers;
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+    double score;
+} lembed_model_selection_t;
+
+lembed_status_t lembed_auto_select_model(const char* use_case, lembed_model_selection_t* result);
