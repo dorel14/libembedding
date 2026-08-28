@@ -125,10 +125,10 @@ static std::string get_cache_key(const char* model_name) {
         RegCloseKey(hKey);
     }
 #else
-    FILE* f = fopen("/proc/cpuinfo", "r");
-    if (f) {
+    FILE* fp = fopen("/proc/cpuinfo", "r");
+    if (fp) {
         char line[256];
-        while (fgets(line, sizeof(line), f)) {
+        while (fgets(line, sizeof(line), fp)) {
             if (strncmp(line, "model name", 10) == 0) {
                 char* colon = strchr(line, ':');
                 if (colon) {
@@ -141,7 +141,7 @@ static std::string get_cache_key(const char* model_name) {
                 break;
             }
         }
-        fclose(f);
+        fclose(fp);
     }
 #endif
 
