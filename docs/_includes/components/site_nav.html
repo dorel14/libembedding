@@ -2,16 +2,14 @@
   Language-aware main navigation override for libembedding docs.
   Renders a French nav on French pages and an English nav on English pages,
   so the sidebar language always matches the page being read.
-  Language is detected by matching the current page URL against the English
-  nav entries (robust: no path-substring guessing).
+  Language is detected from the page URL prefix (/en/ = English). This avoids
+  false matches caused by the cross-language switch links.
   Navigation entries are defined in _data/fr_nav.yml and _data/en_nav.yml.
 {%- endcomment -%}
 
 <nav aria-label="Main" id="site-nav" class="site-nav">
   {% assign is_en = false %}
-  {% for entry in site.data.en_nav %}
-    {% if entry.url == page.url %}{% assign is_en = true %}{% endif %}
-  {% endfor %}
+  {% if page.url contains "/en/" %}{% assign is_en = true %}{% endif %}
 
   {% if is_en %}
     {% assign items = site.data.en_nav %}
