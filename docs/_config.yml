@@ -31,23 +31,7 @@ defaults:
 search_enabled: true
 heading_anchors: true
 nav_error_report: false   # avoid showing a raw error box if a nav entry drifts
-
-# Sidebar navigation. URLs use .html because of permalink: none above.
-nav:
-  - title: Accueil
-    url: /index.html
-  - title: Démarrage
-    url: /getting_started.html
-  - title: API Python
-    url: /api_reference.html
-  - title: Modèles
-    url: /models.html
-  - title: Performance
-    url: /performance_tuning.html
-  - title: Usage avancé
-    url: /advanced_usage.html
-  - title: Documentation anglaise
-    url: /en/index.html
+nav_enabled: true
 
 # Links shown at the bottom of the sidebar.
 aux_links:
@@ -55,6 +39,8 @@ aux_links:
     - "https://github.com/dorel14/libembedding"
   "PyPI (libembedding-ng)":
     - "https://pypi.org/project/libembedding-ng/"
+  "Documentation anglaise":
+    - "https://dorel14.github.io/libembedding/en/index.html"
 
 # "Edit this page" links point to this repository, not the theme.
 gh_edit_link: true

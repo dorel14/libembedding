@@ -1,3 +1,7 @@
+---
+nav_exclude: true
+---
+
 # Performance Tuning
 
 This guide covers libembedding's advanced performance features: session pooling, auto-tuning, and automatic model selection.

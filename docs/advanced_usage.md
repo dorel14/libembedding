@@ -1,3 +1,8 @@
+---
+title: Usage avancé
+nav_order: 6
+---
+
 # Usage avancé
 
 ## Modèles locaux (Bring Your Own ONNX)

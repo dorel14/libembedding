@@ -1,3 +1,8 @@
+---
+title: API Python
+nav_order: 3
+---
+
 # Référence API Python
 
 ## Classes principales

@@ -1,3 +1,7 @@
+---
+nav_exclude: true
+---
+
 # Available models
 
 libembedding ships with a registry of pre-configured models. You can list them dynamically from Python:

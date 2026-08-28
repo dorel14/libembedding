@@ -1,3 +1,8 @@
+---
+title: Accueil
+nav_order: 1
+---
+
 # Documentation libembedding
 
 Bienvenue dans la documentation de **libembedding**, une bibliothèque d'embeddings rapide avec APIs **C/C++** et **Python** basée sur ONNX Runtime.

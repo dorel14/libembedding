@@ -1,3 +1,8 @@
+---
+title: Performance
+nav_order: 5
+---
+
 # Performance Tuning
 
 Ce guide couvre les fonctionnalités avancées de performance de libembedding : pool de sessions, auto-tuning, et sélection automatique de modèle.

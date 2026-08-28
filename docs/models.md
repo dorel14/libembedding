@@ -1,3 +1,8 @@
+---
+title: Modèles
+nav_order: 4
+---
+
 # Modèles disponibles
 
 libembedding intègre un registre de modèles pré-configurés. Vous pouvez les lister dynamiquement depuis Python :

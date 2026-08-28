@@ -1,3 +1,8 @@
+---
+title: Démarrage
+nav_order: 2
+---
+
 # Démarrage rapide
 
 ## Installation

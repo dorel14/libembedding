@@ -1,3 +1,7 @@
+---
+nav_exclude: true
+---
+
 # libembedding Documentation
 
 Welcome to the **libembedding** documentation, a fast embedding library with both **C/C++** and **Python** APIs powered by ONNX Runtime.
