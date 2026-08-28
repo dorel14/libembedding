@@ -1,6 +1,6 @@
 # GitHub Pages configuration (Jekyll)
 # Published from the /docs folder of the default branch ("Deploy from a branch").
-# Mirrors the setup used by dorel14/taskiq-flow.
+# Modern documentation theme: just-the-docs (https://just-the-docs.github.io/just-the-docs/).
 
 title: libembedding
 description: >-
@@ -8,11 +8,60 @@ description: >-
   for C/C++ and Python. Fork of pacifio/libembedding, published on PyPI
   as libembedding-ng.
 
-# Built-in GitHub Pages theme (no plugins required).
-theme: jekyll-theme-minimal
+# Modern, searchable docs theme (no local gem needed on GitHub Pages).
+remote_theme: just-the-docs/just-the-docs
 
 # Project page lives at https://dorel14.github.io/libembedding/
 baseurl: "/libembedding"
 
-# Build the whole docs tree (including the en/ subfolder).
-exclude: []
+# Keep page URLs deterministic so internal .md -> .html links resolve.
+permalink: none
+
+# Apply the theme layout to every page. The theme's own default only targets a
+# `docs/` subfolder; since our Pages source root *is* docs/, we set it here so
+# the sidebar/header chrome is applied to all pages.
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: default
+
+# --- just-the-docs options ---
+search_enabled: true
+heading_anchors: true
+nav_error_report: false   # avoid showing a raw error box if a nav entry drifts
+
+# Sidebar navigation. URLs use .html because of permalink: none above.
+nav:
+  - title: Accueil
+    url: /index.html
+  - title: Démarrage
+    url: /getting_started.html
+  - title: API Python
+    url: /api_reference.html
+  - title: Modèles
+    url: /models.html
+  - title: Performance
+    url: /performance_tuning.html
+  - title: Usage avancé
+    url: /advanced_usage.html
+  - title: Documentation anglaise
+    url: /en/index.html
+
+# Links shown at the bottom of the sidebar.
+aux_links:
+  "libembedding sur GitHub":
+    - "https://github.com/dorel14/libembedding"
+  "PyPI (libembedding-ng)":
+    - "https://pypi.org/project/libembedding-ng/"
+
+# "Edit this page" links point to this repository, not the theme.
+gh_edit_link: true
+gh_edit_repository: "https://github.com/dorel14/libembedding"
+gh_edit_branch: "main"
+gh_edit_source: docs
+
+footer_content: >-
+  libembedding &mdash; fork de <a href="https://github.com/pacifio/libembedding">pacifio/libembedding</a>,
+  publié sous le nom <code>libembedding-ng</code>. Documentation générée avec just-the-docs.

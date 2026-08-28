@@ -1,0 +1,40 @@
+---
+---
+
+/* libembedding — modern accent polish for just-the-docs.
+   This file is imported *after* the theme, so plain CSS overrides win.
+   No @import / no SCSS variables here, to keep the GitHub Pages build safe. */
+
+a {
+  color: #4f46e5;            /* indigo-600 accent */
+}
+a:visited {
+  color: #4338ca;           /* indigo-700 */
+}
+
+.site-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.site-header {
+  border-bottom: 1px solid rgba(79, 70, 229, 0.18);
+}
+
+.main-content h1,
+.main-content h2,
+.main-content h3 {
+  letter-spacing: -0.01em;
+}
+
+.btn-primary {
+  background-color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+/* Tint the active/hover sidebar entries to match the accent */
+.nav-list-link:hover,
+.nav-list-link:focus,
+.nav-list-item .nav-list-link.active {
+  color: #4f46e5;
+}
