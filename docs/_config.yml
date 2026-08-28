@@ -39,8 +39,6 @@ aux_links:
     - "https://github.com/dorel14/libembedding"
   "PyPI (libembedding-ng)":
     - "https://pypi.org/project/libembedding-ng/"
-  "Documentation anglaise":
-    - "https://dorel14.github.io/libembedding/en/index.html"
 
 # "Edit this page" links point to this repository, not the theme.
 gh_edit_link: true

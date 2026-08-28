@@ -1,0 +1,14 @@
+- title: Home
+  url: /en/index.html
+- title: Getting started
+  url: /en/getting_started.html
+- title: Python API Reference
+  url: /en/api_reference.html
+- title: Available models
+  url: /en/models.html
+- title: Performance Tuning
+  url: /en/performance_tuning.html
+- title: Advanced usage
+  url: /en/advanced_usage.html
+- title: Documentation française
+  url: /index.html
