@@ -1,6 +1,38 @@
 # CHANGELOG
 
 
+## v1.2.0 (2026-08-28)
+
+### Bug Fixes
+
+- **ci**: Make version job output explicit dependency for publish job
+  ([`121f796`](https://github.com/dorel14/libembedding/commit/121f79682815f49277207b04e26da628bde48d46))
+
+### Features
+
+- **autotune**: Implémenter l'auto-tuning et la sélection automatique de modèle
+  ([`d178ff2`](https://github.com/dorel14/libembedding/commit/d178ff2d68368ad9070c6f52d94e073eff6ea60d))
+
+Ajout du système complet d'auto-tuning C++/Python pour l'optimisation automatique des paramètres de
+  performance (workers, threads, batch_size).
+
+Le tuning s'appuie sur un cache persistant clé par configuration matérielle (cœurs CPU, modèle,
+  version de la bibliothèque), évitant de refaire le benchmark à chaque exécution. Deux modes sont
+  proposés : - QUICK (5-15s) : benchmark synthétique rapide - FULL (30-120s) : benchmark exhaustif
+
+La sélection automatique de modèle (`auto_select_model`) évalue les modèles disponibles selon un
+  use-case ("speed", "quality", "balanced") et retourne le meilleur candidat avec sa configuration
+  optimale.
+
+Les nouveaux composants : - API C `lembed_autotune`, `lembed_autotune_custom`,
+  `lembed_auto_select_model`, `lembed_autotune_clear_cache` - Types Python `TuningResult` et
+  `ModelSelectionResult` - Fonctions Python `autotune()`, `auto_select_model()`,
+  `clear_autotune_cache()` - Documentation de performance (FR et EN) avec guide d'utilisation -
+  Suite de tests complète (C++ et Python) incluant le cache, le corpus personnalisé et la sélection
+  de modèle - Support Windows amélioré pour le répertoire de cache (`USERPROFILE` puis
+  `LOCALAPPDATA`)
+
+
 ## v1.1.1 (2026-08-28)
 
 ### Bug Fixes
