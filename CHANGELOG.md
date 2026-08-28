@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.1 (2026-08-28)
+
+### Bug Fixes
+
+- **ci**: Skip model download tests when network is unavailable
+  ([`1eb6443`](https://github.com/dorel14/libembedding/commit/1eb6443a7570848a152729fa53a8f68ab4a3d0a6))
+
+
 ## v1.1.0 (2026-08-28)
 
 ### Chores
