@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.2.1 (2026-08-28)
+
+### Bug Fixes
+
+- **autotune**: Redefinition de variable 'f' dans autotuner_impl.hpp
+  ([`6067233`](https://github.com/dorel14/libembedding/commit/6067233bd752c1f8036a60a987b21b6a926f5a33))
+
+
 ## v1.2.0 (2026-08-28)
 
 ### Bug Fixes
