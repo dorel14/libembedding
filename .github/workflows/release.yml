@@ -1,5 +1,20 @@
 name: Release
 
+# Versioning is handled by python-semantic-release. On every push to `main`
+# (or manual dispatch) semantic-release inspects the commits since the last
+# tag:
+#   * feat:        -> minor bump
+#   * fix/perf:    -> patch bump
+#   * BREAKING:    -> major bump
+# It stamps the version into python/pyproject.toml, commits, tags (v{version}),
+# pushes everything and opens a GitHub release.
+#
+# The wheel build (all platforms) and the PyPI upload are chained in the *same*
+# workflow run via job dependencies, so we never rely on a tag push firing
+# another workflow (the default GITHUB_TOKEN cannot do that anyway). A
+# "[skip ci]" marker is put on the bump commit so the push-back to `main`
+# cannot re-trigger this workflow.
+
 on:
   push:
     branches: [main]
@@ -7,96 +22,90 @@ on:
 
 permissions:
   contents: write
-  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  # 1) Build wheels on all platforms (for testing)
-  build:
-    name: ${{ matrix.name }}
-    uses: ./.github/workflows/build-wheel.yml
-    with:
-      os: ${{ matrix.os }}
-      python: ${{ matrix.python }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04
-            name: linux-x86_64
-            python: "3.12"
-          - os: macos-14
-            name: macos-arm64
-            python: "3.12"
-          - os: windows-2022
-            name: windows-x86_64
-            python: "3.12"
-
-  # 2) Read version from pyproject.toml, create tag + GitHub release
+  # -----------------------------------------------------------------------
+  # 1) Determine the next version and create the release (tag + GH release)
+  # -----------------------------------------------------------------------
   version:
-    name: Version & Tag
+    name: Semantic Release
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-    permissions:
-      contents: write
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      released: ${{ steps.resolve.outputs.released }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read version from pyproject.toml
-        id: version
-        run: |
-          VERSION=$(grep -m1 '^version' python/pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION  ->  Tag: v$VERSION"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Skip if release commit
-        id: skip
+      - name: Install semantic-release
         run: |
-          LAST_MSG="$(git log -1 --pretty=%B)"
-          if echo "$LAST_MSG" | grep -qE '^chore\(release\):'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          python -m pip install --upgrade pip
+          # IMPORTANT: gitpython >= 3.1.60 removed Actor.name_email_regex which
+          # python-semantic-release 9.x still references, crashing every run.
+          # Pinning gitpython<3.1.60 is the documented upstream workaround.
+          pip install "python-semantic-release==9.21.2" "gitpython<3.1.60"
 
-      - name: Create and push git tag
-        if: steps.skip.outputs.skip != 'true'
-        env:
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists locally"
-          elif git ls-remote --tags origin "$TAG" | grep -q "$TAG"; then
-            echo "Tag $TAG already exists remotely"
-          else
-            git tag "$TAG"
-            git push origin "$TAG"
-          fi
-
-      - name: Create GitHub release
-        if: steps.skip.outputs.skip != 'true'
+      - name: Detect next release
+        id: detect
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists"
+          NEXT="$(semantic-release version --print 2>/dev/null || true)"
+          LAST="$(semantic-release version --print-last-released 2>/dev/null || true)"
+          echo "detected_next=${NEXT}" >> "$GITHUB_ENV"
+          echo "detected_last=${LAST}" >> "$GITHUB_ENV"
+          if [[ "$NEXT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$NEXT" != "$LAST" ]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+            echo "Next release: ${NEXT} (last: ${LAST})"
           else
-            gh release create "$TAG" --title "$VERSION" --generate-notes
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "No release needed on this push (next=${NEXT}, last=${LAST})."
           fi
 
-  # 3) Rebuild wheels against the new tag (version matches tag)
-  build-wheels:
-    name: Build release wheels (${{ matrix.name }})
+      - name: Create release
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.detect.outputs.released }}" = "true" ]; then
+            # Stamps the version, commits, tags, pushes and opens the GitHub release.
+            semantic-release version
+            # The bump commit is tagged vX.Y.Z - capture it for downstream jobs.
+            TAG="$(git tag --points-at HEAD | grep -E '^v[0-9]' | head -n1)"
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "version=${{ steps.detect.outputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "Created release: ${TAG}"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "No release needed on this push."
+          fi
+
+  # -----------------------------------------------------------------------
+  # 2) Build the platform wheels for every supported OS (matrix)
+  # -----------------------------------------------------------------------
+  build:
+    name: Build wheel (${{ matrix.name }})
     needs: version
-    if: needs.version.outputs.version != ''
+    if: needs.version.outputs.released == 'true'
     uses: ./.github/workflows/build-wheel.yml
+    secrets: inherit
     with:
       os: ${{ matrix.os }}
       python: ${{ matrix.python }}
@@ -115,14 +124,16 @@ jobs:
             name: windows-x86_64
             python: "3.12"
 
-  # 4) Publish all wheels to PyPI via PYPI_TOKEN
+  # -----------------------------------------------------------------------
+  # 3) Collect every wheel and publish them to PyPI
+  # -----------------------------------------------------------------------
   publish:
     name: Publish to PyPI
-    needs: build-wheels
+    needs: build
+    if: always() && needs.build.result == 'success' && needs.version.outputs.released == 'true'
     runs-on: ubuntu-latest
-    environment: pypi
     steps:
-      - name: Download all wheel artifacts
+      - name: Download wheel artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: wheel-*
@@ -132,7 +143,23 @@ jobs:
       - name: List wheels
         run: ls -la dist/
 
-      - name: Publish to PyPI (via PYPI_TOKEN)
+      - name: Skip if version already on PyPI
+        id: check
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          CODE="$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://pypi.org/pypi/libembedding-ng/${VERSION}/json")"
+          if [ "$CODE" = "200" ]; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} already present on PyPI - skipping upload."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+            echo "PyPI check HTTP ${CODE} - publishing ${VERSION}."
+          fi
+
+      - name: Publish to PyPI
+        if: steps.check.outputs.already_exists != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
+          packages-dir: dist/
