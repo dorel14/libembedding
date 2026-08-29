@@ -83,6 +83,46 @@ class RerankerTuningResult:
 
 
 @dataclass(frozen=True)
+class SparseTuningResult:
+    """Result of sparse auto-tuning for optimal performance."""
+
+    top_k: int
+    min_weight: float
+    storage_format: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+
+
+@dataclass(frozen=True)
+class ImageTuningResult:
+    """Result of image auto-tuning for optimal performance."""
+
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+
+
+@dataclass(frozen=True)
+class UnifiedTuningResult:
+    """Result of unified auto-tuning for any task type."""
+
+    task: str
+    threads: int
+    batch_size: int
+    workers: int
+    max_tokens: int
+    throughput_docs_sec: float
+    latency_ms: float
+    p95_latency_ms: float
+    memory_mb: float
+
+
+@dataclass(frozen=True)
 class UnifiedTuningResult:
     """Result of unified auto-tuning for any task type."""
 

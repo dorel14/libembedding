@@ -15,7 +15,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import ModelDesc, Stats
+from .types import ModelDesc, Stats, ImageTuningResult
 from .exceptions import ModelNotFoundError
 
 
@@ -195,3 +195,43 @@ class ImageEmbedding:
 
     def __exit__(self, *args):
         self.close()
+
+
+def image_autotune(
+    model_name: str = "openai/clip-vit-base-patch32-quantized",
+    *,
+    full: bool = False,
+) -> "ImageTuningResult":
+    """Run auto-tuning to find optimal image embedding configuration.
+
+    Args:
+        model_name: Model name (e.g. "openai/clip-vit-base-patch32-quantized")
+        full: If True, run FULL mode (30-120s), else QUICK (5-15s)
+
+    Returns:
+        ImageTuningResult with optimal threads, batch_size.
+
+    Example:
+        >>> result = image_autotune("openai/clip-vit-base-patch32-quantized")
+        >>> print(f"Optimal: {result.threads} threads, batch={result.batch_size}")
+    """
+    mode = lib.LEMBED_AUTOTUNE_FULL if full else lib.LEMBED_AUTOTUNE_QUICK
+    result = ffi.new("lembed_image_tuning_result_t *")
+
+    # Resolve model code
+    code = model_name
+    models = list_image_models()
+    for m in models:
+        if model_name in (m.model_name, m.model_code):
+            code = m.model_code
+            break
+
+    check_status(lib.lembed_image_autotune(code.encode("utf-8"), mode, result))
+
+    return ImageTuningResult(
+        threads=result.threads,
+        batch_size=result.batch_size,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        memory_mb=result.memory_mb,
+    )

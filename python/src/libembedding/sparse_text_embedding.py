@@ -15,7 +15,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import SparseEmbedding, ModelDesc, Stats
+from .types import SparseEmbedding, ModelDesc, Stats, SparseTuningResult
 from .exceptions import ModelNotFoundError
 
 
@@ -168,3 +168,46 @@ class SparseTextEmbedding:
 
     def __exit__(self, *args):
         self.close()
+
+
+def sparse_autotune(
+    model_name: str = "prithivida/Splade_PP_en_v1",
+    *,
+    full: bool = False,
+) -> "SparseTuningResult":
+    """Run auto-tuning to find optimal sparse embedding configuration.
+
+    Args:
+        model_name: Model name (e.g. "prithivida/Splade_PP_en_v1")
+        full: If True, run FULL mode (30-120s), else QUICK (5-15s)
+
+    Returns:
+        SparseTuningResult with optimal top_k, min_weight, storage_format.
+
+    Example:
+        >>> result = sparse_autotune("prithivida/Splade_PP_en_v1")
+        >>> print(f"Optimal: top_k={result.top_k}, storage={result.storage_format}")
+    """
+    mode = lib.LEMBED_AUTOTUNE_FULL if full else lib.LEMBED_AUTOTUNE_QUICK
+    result = ffi.new("lembed_sparse_tuning_result_t *")
+
+    # Resolve model code
+    code = model_name
+    models = list_sparse_models()
+    for m in models:
+        if model_name in (m.model_name, m.model_code):
+            code = m.model_code
+            break
+
+    check_status(lib.lembed_sparse_autotune(code.encode("utf-8"), mode, result))
+
+    return SparseTuningResult(
+        top_k=result.top_k,
+        min_weight=result.min_weight,
+        storage_format=result.storage_format,
+        threads=result.threads,
+        batch_size=result.batch_size,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        memory_mb=result.memory_mb,
+    )

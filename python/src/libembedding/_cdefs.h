@@ -442,18 +442,6 @@ lembed_status_t lembed_sparse_autotune(
     lembed_autotune_mode_t mode,
     lembed_sparse_tuning_result_t* result);
 
-/* Sparse autotune */
-typedef struct {
-    int pruning_threshold;
-    int top_k;
-    int quantization;
-    int storage_format;
-    double throughput_docs_sec;
-    double memory_mb;
-} lembed_sparse_autotune_result_t;
-
-int lembed_sparse_autotune(const char* model_name, lembed_sparse_autotune_result_t* result);
-
 /* Model selector */
 typedef enum {
     LEMBED_USE_CASE_SPEED = 0,
@@ -514,3 +502,17 @@ typedef struct {
 } lembed_model_selection_t;
 
 lembed_status_t lembed_auto_select_model(const char* use_case, lembed_model_selection_t* result);
+
+/* Image Auto-Tuner */
+typedef struct {
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+} lembed_image_tuning_result_t;
+
+lembed_status_t lembed_image_autotune(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_image_tuning_result_t* result);

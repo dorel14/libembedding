@@ -7,10 +7,10 @@ except PackageNotFoundError:
     __version__ = "0.0.0"
 
 from .text_embedding import TextEmbedding, TextEmbeddingPool, autotune, auto_select_model, clear_autotune_cache, autotune_unified
-from .sparse_text_embedding import SparseTextEmbedding
-from .image_embedding import ImageEmbedding
+from .sparse_text_embedding import SparseTextEmbedding, sparse_autotune
+from .image_embedding import ImageEmbedding, image_autotune
 from .reranker import Reranker, reranker_autotune, reranker_auto_config, clear_reranker_autotune_cache, reranker_auto_config_profile, reranker_autotune_constrained
-from .types import SparseEmbedding, RerankResult, ModelInfo, ModelDesc, Stats, TuningResult, RerankerTuningResult, UnifiedTuningResult, ModelSelectionResult
+from .types import SparseEmbedding, RerankResult, ModelInfo, ModelDesc, Stats, TuningResult, RerankerTuningResult, SparseTuningResult, ImageTuningResult, UnifiedTuningResult, ModelSelectionResult
 from .models import (
     list_text_models,
     list_sparse_models,
@@ -55,7 +55,9 @@ __all__ = [
     "auto_select_model",
     "clear_autotune_cache",
     "SparseTextEmbedding",
+    "sparse_autotune",
     "ImageEmbedding",
+    "image_autotune",
     "Reranker",
     "SparseEmbedding",
     "RerankResult",
@@ -64,6 +66,8 @@ __all__ = [
     "Stats",
     "TuningResult",
     "RerankerTuningResult",
+    "SparseTuningResult",
+    "ImageTuningResult",
     "UnifiedTuningResult",
     "autotune_unified",
     "reranker_autotune",
