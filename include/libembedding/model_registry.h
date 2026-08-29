@@ -272,6 +272,10 @@ static const lembed_model_info_t lembed__image_models[] = {
     { "nomic-ai/nomic-embed-vision-v1.5", "nomic-ai/nomic-embed-vision-v1.5",
       "onnx/model.onnx", "Nomic embed vision v1.5",
       768, 0, 0, LEMBED_QUANTIZATION_NONE },
+    /* LEMBED_IMAGE_CLIP_VIT_B32_QUANTIZED */
+    { "openai/clip-vit-base-patch32-quantized", "Xenova/clip-vit-base-patch32",
+      "onnx/vision_model_int8.onnx", "CLIP vision encoder INT8 quantized",
+      512, 0, 0, LEMBED_QUANTIZATION_STATIC },
 };
 
 /* =========================================================================
