@@ -1,6 +1,290 @@
 # CHANGELOG
 
 
+## v1.3.0 (2026-08-29)
+
+### Bug Fixes
+
+- Code review cleanup and improvements
+  ([`1248445`](https://github.com/dorel14/libembedding/commit/12484457efc284aa4a10b94b52894649a39cce8d))
+
+- Remove DEBUG fprintf from production code
+
+- Fix unified autotuner to support IMAGE task
+
+- Add sparse autotune wrapper in extern C block
+
+- Add SparseTuningResult and ImageTuningResult types
+
+- Expose sparse_autotune and image_autotune in Python
+
+- Expose all autotune enums (objectives, tasks, profiles)
+
+- Remove duplicate struct definitions
+
+- Expose autotune enums in Python bindings
+  ([`3e5c6b7`](https://github.com/dorel14/libembedding/commit/3e5c6b77b6ce690a5ba073067f615ce603271ec2))
+
+- Add LEMBED_OBJECTIVE_* (latency, throughput, balanced, memory)
+
+- Add LEMBED_TASK_* (embedding, reranking, image, sparse)
+
+- Add LEMBED_PROFILE_* (interactive, balanced, quality)
+
+- Verify all auto-tuner functions work from Python
+
+- Expose sparse and image autotuners in Python
+  ([`dc4f943`](https://github.com/dorel14/libembedding/commit/dc4f94342cee27393676a1ecc032930e37b75f5f))
+
+- Add sparse_autotune() wrapper
+
+- Add image_autotune() wrapper
+
+- Add SparseTuningResult and ImageTuningResult types
+
+- Fix image autotuner with BMP-based benchmark (no zlib needed)
+
+- All 4 autotuners now work from Python
+
+- Remove duplicate declarations in _cdefs.h
+  ([`bdd42bc`](https://github.com/dorel14/libembedding/commit/bdd42bcd605298dff6b871636f867fa7da83dec1))
+
+- Remove old lembed_autotune with int return type
+
+- Remove duplicate lembed_autotune_mode_t definition
+
+- Remove duplicate lembed_tuning_result_t definition
+
+- Keep only lembed_status_t return type versions
+
+- Resolve remaining structural issues (S2, S4, S6)
+  ([`a9771da`](https://github.com/dorel14/libembedding/commit/a9771dadf47d2828d501a1099ef037ed87dcde46))
+
+- S2: Remove duplicate lembed_reranker_autotune declarations in _cdefs.h
+
+- S4: Delete model_selector_impl.hpp (duplication)
+
+- S6: Extract check_status() helper, remove 4x check_or_throw()
+
+- R4: Extract is_optional_file() helper in downloader_impl.hpp
+
+### Documentation
+
+- Detect language from URL prefix /en/ (fix switch-link misclassification)
+  ([`37c90b6`](https://github.com/dorel14/libembedding/commit/37c90b6b8932ac02a7fa6ca642df8ea059cee000))
+
+- The cross-language switch links made URL-membership detection misclassify the French home
+  (/index.html) as English (en_nav's 'Documentation française' entry also points to /index.html). -
+  Use page.url prefix '/en/' instead: only pages under /en/ are English, so the French home
+  correctly gets the French sidebar.
+
+- Document pacifio/libembedding fork, Windows DLL, and GitHub Pages setup
+  ([`60c31dd`](https://github.com/dorel14/libembedding/commit/60c31dd783e4a77387395783d2d0a68b1212bf28))
+
+- Mark the project as a fork of pacifio/libembedding, published on PyPI as libembedding-ng - Drop
+  the inaccurate 'header-only' claim: Windows now builds a native DLL and a compiled shared library
+  is bundled for the Python bindings - Fix PyPI install name (libembedding-ng) and stale version/URL
+  references (yourorg/libembedding, 0.3.0, py3-none-any wheels) - Add docs/_config.yml (Jekyll) so
+  the docs/ folder publishes via GitHub Pages 'Deploy from a branch'; fix internal .md links so they
+  resolve as .html
+
+- Fix sidebar language detection
+  ([`e0c0217`](https://github.com/dorel14/libembedding/commit/e0c0217ad4d7979c83b5d327298ec987a18ac115))
+
+- Replace fragile 'page.path contains en/' check (misclassified French pages as English) with
+  URL-membership detection: a page is English only if its URL matches one of the English nav
+  entries. This guarantees the sidebar language matches the page.
+
+- Image quantization methodology and storage analysis
+  ([`7dff953`](https://github.com/dorel14/libembedding/commit/7dff953c607eda110c56a5d61fbd0a14d183e1b8))
+
+- Document CLIP INT8/UINT8/FP16 quantized models from Xenova
+
+- Storage cost: CLIP 512-dim = 2KB vs ResNet 2048-dim = 8KB per vector
+
+- At 1M images: CLIP FP32 = 2GB, CLIP INT8 = 0.5GB
+
+- Image storage cost analysis
+  ([`10f4750`](https://github.com/dorel14/libembedding/commit/10f47500dc260d7aac95d2dc1529520b9bc752d4))
+
+- CLIP INT8: 0.5 KB/vector, ResNet FP32: 8 KB/vector
+
+- At 1M images: CLIP INT8 = 0.51 GB, ResNet FP32 = 8.19 GB
+
+- Make sidebar language-aware (FR/EN switch)
+  ([`53cca0f`](https://github.com/dorel14/libembedding/commit/53cca0f0a402e95218714174fc2f5947d3b88306))
+
+- Override components/site_nav.html to render a French nav on French pages and an English nav on
+  English pages, so the sidebar language matches the page being read (fixes English pages showing a
+  French sidebar) - Define nav entries in _data/fr_nav.yml and _data/en_nav.yml - Drop the
+  now-redundant 'Documentation anglaise' aux link (switch is in the nav)
+
+- Order sidebar nav and separate FR/EN via front matter
+  ([`61de320`](https://github.com/dorel14/libembedding/commit/61de32009cfcdacd981eab1265fee3ba2f42609e))
+
+- Remove the config nav: block (it silently fell back to the auto-generated nav, mixing FR/EN pages
+  and ignoring order) - Set nav_order (1-6) on the French pages for a coherent order: Accueil ->
+  Demarrage -> API Python -> Modeles -> Performance -> Usage avance - Set nav_exclude: true on the
+  English pages so they no longer clutter the sidebar; a 'Documentation anglaise' aux link provides
+  access - Enable nav_enabled: true
+
+- Override whole sidebar.html instead of cached site_nav
+  ([`a472344`](https://github.com/dorel14/libembedding/commit/a4723444e8e4d48d040564500ff755fb7ea4cf25))
+
+- The theme pulls site_nav via include_cached, which can ignore project overrides on GitHub Pages,
+  so the language-aware nav was not applied (French pages kept showing the English sidebar). -
+  Override components/sidebar.html directly (plain include from the layout) so the FR/EN nav switch
+  is guaranteed to render. Drop the unused site_nav override.
+
+- Switch GitHub Pages theme to just-the-docs
+  ([`cc9aaf8`](https://github.com/dorel14/libembedding/commit/cc9aaf8468fd32b0e26f2e2f02c77bf998c7bed0))
+
+- Replace jekyll-theme-minimal with remote_theme: just-the-docs/just-the-docs for a modern,
+  searchable docs site with a sidebar navigation - Add a defaults block applying the theme layout to
+  all pages (the theme's own default only targets a docs/ subfolder, but our Pages source root is
+  docs/) - Define an explicit sidebar nav, aux links, and correct 'Edit this page' repo - Add custom
+  accent SCSS (plain CSS overrides, build-safe) for a modern indigo look
+
+### Features
+
+- Autotuner with objectives and constraints
+  ([`3362431`](https://github.com/dorel14/libembedding/commit/33624316b9db1202f0030f04d56420499c6ea359))
+
+- Add optimization objectives: latency, throughput, balanced, memory
+
+- Add constrained autotuner (min_tokens, max_latency_ms)
+
+- Image quality benchmark: CLIP > ResNet for retrieval
+
+- Image profiling: ONNX dominates (3x-500x preprocessing)
+
+- Fix sparse autotuner signature mismatch
+
+- 4 specialized autotuners: text, sparse, reranker, image
+
+- Clip INT8 quantized model integration
+  ([`6ca4201`](https://github.com/dorel14/libembedding/commit/6ca4201169143a3fb58d4d23fd2cebaf458fcb00))
+
+- Add CLIP INT8 model from Xenova (88.6 MB)
+
+- INT8 1.21x faster than FP32 (68.2 vs 82.8 ms/image)
+
+- INT8 3.95x less RAM (92 vs 364 MB)
+
+- INT8 3.13x faster load (316 vs 988 ms)
+
+- Image embedding profiling and pipeline optimization
+  ([`b8f8ce1`](https://github.com/dorel14/libembedding/commit/b8f8ce17f9f9581464ed74ad0f2a8a65bc370519))
+
+- Profile preprocessing vs inference: ONNX dominates (3x-500x)
+
+- Zero-copy preprocessing (eliminate ImageTensor intermediate copy)
+
+- Optimized RGB→CHW loop (cache-friendly pixel access)
+
+- Add image auto-tuner (threads × batch_size)
+
+- Profiling shows batching gives 22-27% gain for transformers
+
+- ResNet-50 fastest (19.2 img/s), CLIP better for multimodal
+
+- Image quantization and storage analysis
+  ([`0561478`](https://github.com/dorel14/libembedding/commit/05614786c49490b2715e1e67bb50dbbbaa46f6e4))
+
+- CLIP INT8 model integrated (1.21x faster, 3.95x less RAM)
+
+- Storage analysis: CLIP INT8 = 0.5GB/1M images vs ResNet FP32 = 8GB
+
+- Autotuner with objectives: latency, throughput, balanced, memory
+
+- Constrained autotuner: min_tokens, max_latency_ms
+
+- Intégrer ONNX Runtime et libcurl dans la distribution globale
+  ([`3a46d50`](https://github.com/dorel14/libembedding/commit/3a46d50b6ef283806704b6334bf421bf31805f5d))
+
+- Ajout de la fonction CMake copy_runtime_libs pour copier automatiquement les .so/.dylib/.dll
+  d'ONNX Runtime et libcurl à côté des exécutables sur toutes les plateformes (Linux, macOS,
+  Windows). - Mise à jour du workflow GitHub Actions pour inclure les DLLs ONNX Runtime et libcurl
+  dans les wheels PyPI. - Application de copy_runtime_libs aux cibles examples et tests. - Mise à
+  jour de la documentation (README et getting_started) pour refléter le bundling automatique au
+  runtime.
+
+- Reranker optimization with auto-tuner and INT8 quantization
+  ([`60e28c1`](https://github.com/dorel14/libembedding/commit/60e28c101bc10bbfb88b91581c40a700550d6b39))
+
+- Add Jina v1 turbo INT8 quantized model (5x faster than BGE-base, 4.2x less RAM)
+
+- Implement reranker auto-tuner (threads x batch_size x max_tokens)
+
+- Add unified auto-tuner API (lembed_autotune_unified) for all task types
+
+- Add profile-based auto-config: fast/balanced/quality
+
+- Make tokenizer.json optional for vision models in downloader
+
+- 50-query quality benchmark: INT8 NDCG@10 -0.28% vs FP32 (recommended default)
+
+- Comprehensive benchmarks: latency, throughput, batching, memory, workers, top_k
+
+- Auto-tuner cache per (model, CPU cores) in JSON
+
+- Sparse embedding with auto-tuner
+  ([`5dcb01c`](https://github.com/dorel14/libembedding/commit/5dcb01cbc9e566a4665f4b0416797c6727cbf51a))
+
+- Fix sparse embed function signature (6 params with sparse_opts)
+
+- Add sparse auto-tuner (top_k x min_weight x storage_format)
+
+- Fix file_exists to use std::filesystem (fixes BGE-M3 offline mode)
+
+- Make tokenizer.json optional for vision models
+
+- Add sparse benchmark: SPLADE++ 44.5 docs/s, BGE-M3 19.9 docs/s
+
+### Refactoring
+
+- Condense downloader_impl.hpp
+  ([`a69bc01`](https://github.com/dorel14/libembedding/commit/a69bc01c17376c44106c56372a5332d85248a4a7))
+
+- Merge common functions (get_cache_dir, file_exists, read_file_to_string, mkdirs)
+
+- Extract repo_to_dirname() helper
+
+- Clean up stub version (remove redundant casts)
+
+- Reduce from 331 to ~200 lines
+
+- Factorize image_preprocess.hpp
+  ([`4f20cf8`](https://github.com/dorel14/libembedding/commit/4f20cf82eeb8cf3f29b6c513f8e414e3ce452e7b))
+
+- Extract rgb_to_chw_float() helper (shared by all 4 functions)
+
+- Use shared IMAGE_NET_MEAN/STD constants
+
+- Fix misleading comment about cache locality
+
+- Add nullptr validation for mean/std_dev parameters
+
+- Reduce code duplication from ~250 to ~150 lines
+
+- Split autotuner_impl.hpp into focused modules
+  ([`5bc9524`](https://github.com/dorel14/libembedding/commit/5bc952414a9944b60c760231bce8a86ef65a770e))
+
+- autotune_cache.hpp: cache system (CPU detection, cache I/O)
+
+- autotune_bench_text.hpp: text embedding auto-tuner
+
+- autotune_bench_reranker.hpp: reranker auto-tuner
+
+- autotune_bench_sparse.hpp: sparse embedding auto-tuner
+
+- autotune_bench_image.hpp: image embedding auto-tuner
+
+- autotuner_impl.hpp: unified orchestrator only
+
+- Fix linkage issues with extern C wrappers
+
+
 ## v1.2.1 (2026-08-28)
 
 ### Bug Fixes
