@@ -410,6 +410,14 @@ int lembed_find_reranker_model_by_code(const char* model_code) {
     return -1;
 }
 
+int lembed_find_image_model_by_code(const char* model_code) {
+    if (!model_code) return -1;
+    for (int i = 0; i < LEMBED_IMAGE_MODEL_COUNT; i++) {
+        if (strcmp(lembed__image_models[i].model_code, model_code) == 0) return i;
+    }
+    return -1;
+}
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

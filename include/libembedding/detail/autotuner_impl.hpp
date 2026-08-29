@@ -658,13 +658,59 @@ static lembed_reranker_tuning_result_t bench_reranker_config(
     return res;
 }
 
+/* Score a configuration based on objective */
+static double score_config(const lembed_reranker_tuning_result_t& r, lembed_objective_t obj) {
+    switch (obj) {
+        case LEMBED_OBJECTIVE_LATENCY:
+            return r.latency_ms + (r.p95_latency_ms - r.latency_ms) * 0.5;
+        case LEMBED_OBJECTIVE_THROUGHPUT:
+            /* Higher throughput = lower score (we minimize) */
+            return r.throughput_docs_sec > 0 ? (1.0 / r.throughput_docs_sec) * 1000000 : 999999;
+        case LEMBED_OBJECTIVE_BALANCED:
+            /* Balance: latency / throughput ratio */
+            return r.latency_ms * 0.5 + (1.0 / (r.throughput_docs_sec + 1)) * 1000;
+        case LEMBED_OBJECTIVE_MEMORY:
+            return r.memory_mb > 0 ? r.memory_mb : r.latency_ms;
+        default:
+            return r.latency_ms;
+    }
+}
+
+/* Forward declaration */
+static lembed_status_t lembed_reranker_autotune_impl(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    lembed_reranker_tuning_result_t* result);
+
 /* Main reranker auto-tune function */
 lembed_status_t lembed_reranker_autotune(
     const char* model_name,
     lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
-    if (!model_name || !result) return LEMBED_ERROR_INVALID_ARGUMENT;
+    fprintf(stderr, "DEBUG: lembed_reranker_autotune called with model_name=%s, mode=%d, objective=%d\n",
+            model_name ? model_name : "(null)", mode, objective);
+    if (!model_name || !result) {
+        fprintf(stderr, "DEBUG: returning INVALID_ARGUMENT\n");
+        return LEMBED_ERROR_INVALID_ARGUMENT;
+    }
+
+    try {
+        return lembed_reranker_autotune_impl(model_name, mode, objective, result);
+    } catch (const std::exception& e) {
+        fprintf(stderr, "reranker_autotune: exception: %s\n", e.what());
+        return LEMBED_ERROR_ONNX_RUNTIME;
+    }
+}
+
+static lembed_status_t lembed_reranker_autotune_impl(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    lembed_reranker_tuning_result_t* result)
+{
 
     /* Check cache first */
     lembed_reranker_tuning_result_t cached;
@@ -680,10 +726,7 @@ lembed_status_t lembed_reranker_autotune(
     int bench_iters = (mode == LEMBED_AUTOTUNE_QUICK) ? 5 : 15;
 
     /* Configurations to test */
-    /* QUICK: fewer configs (3 threads x 2 batch x 2 tokens = 12) */
-    /* FULL: more configs (4 threads x 3 batch x 4 tokens = 48) */
     std::vector<int> threads_vec, batch_vec, tokens_vec;
-
     if (mode == LEMBED_AUTOTUNE_QUICK) {
         threads_vec = {1, 4, 8};
         batch_vec = {4, 16};
@@ -706,8 +749,8 @@ lembed_status_t lembed_reranker_autotune(
     int total_configs = valid_threads.size() * batch_vec.size() * tokens_vec.size();
     int current = 0;
 
-    fprintf(stderr, "reranker_autotune: testing %d configurations (mode=%s)...\n",
-            total_configs, mode == LEMBED_AUTOTUNE_QUICK ? "QUICK" : "FULL");
+    fprintf(stderr, "reranker_autotune: testing %d configurations (mode=%s, objective=%d)...\n",
+            total_configs, mode == LEMBED_AUTOTUNE_QUICK ? "QUICK" : "FULL", objective);
 
     for (int t : valid_threads) {
         for (int b : batch_vec) {
@@ -723,9 +766,8 @@ lembed_status_t lembed_reranker_autotune(
                 auto r = bench_reranker_config(model_name, threads, batch, tokens,
                                                n_docs, warmup, bench_iters);
 
-                /* Score: prefer lower latency, with penalty for high P95 */
-                double score = r.latency_ms + (r.p95_latency_ms - r.latency_ms) * 0.5;
-                double best_score = best.latency_ms + (best.p95_latency_ms - best.latency_ms) * 0.5;
+                double score = score_config(r, objective);
+                double best_score = score_config(best, objective);
 
                 if (score < best_score) {
                     best = r;
@@ -744,22 +786,110 @@ lembed_status_t lembed_reranker_autotune(
     return LEMBED_OK;
 }
 
+/* Reranker auto-tune with constraints (min_tokens, max_latency) */
+lembed_status_t lembed_reranker_autotune_constrained(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    int min_tokens,
+    double max_latency_ms,
+    lembed_reranker_tuning_result_t* result)
+{
+    if (!model_name || !result) return LEMBED_ERROR_INVALID_ARGUMENT;
+
+    int cores = cpu_logical_cores();
+    int n_docs = 20;
+    int warmup = 1;
+    int bench_iters = (mode == LEMBED_AUTOTUNE_QUICK) ? 5 : 15;
+
+    std::vector<int> threads_vec, batch_vec, tokens_vec;
+    if (mode == LEMBED_AUTOTUNE_QUICK) {
+        threads_vec = {1, 4, 8};
+        batch_vec = {4, 16};
+        tokens_vec = {64, 256};
+    } else {
+        threads_vec = {1, 2, 4, 8};
+        batch_vec = {4, 8, 16};
+        tokens_vec = {32, 64, 128, 256};
+    }
+
+    /* Filter by constraints */
+    std::vector<int> valid_threads;
+    for (int t : threads_vec) {
+        if (t <= cores) valid_threads.push_back(t);
+    }
+    std::vector<int> valid_tokens;
+    for (int k : tokens_vec) {
+        if (k >= min_tokens) valid_tokens.push_back(k);
+    }
+    if (valid_tokens.empty()) {
+        /* No config satisfies min_tokens - use minimum possible */
+        valid_tokens = {min_tokens};
+    }
+
+    lembed_reranker_tuning_result_t best = {0};
+    best.latency_ms = 999999;
+
+    int total_configs = valid_threads.size() * batch_vec.size() * valid_tokens.size();
+    int current = 0;
+
+    fprintf(stderr, "reranker_autotune: testing %d configurations (mode=%s, objective=%d, min_tokens=%d, max_latency=%.0fms)...\n",
+            total_configs, mode == LEMBED_AUTOTUNE_QUICK ? "QUICK" : "FULL", objective, min_tokens, max_latency_ms);
+
+    for (int t : valid_threads) {
+        for (int b : batch_vec) {
+            for (int k : valid_tokens) {
+                current++;
+                int threads = t;
+                int batch = b;
+                int tokens = k;
+
+                auto r = bench_reranker_config(model_name, threads, batch, tokens,
+                                               n_docs, warmup, bench_iters);
+
+                /* Check latency constraint */
+                if (r.p95_latency_ms > max_latency_ms) continue;
+
+                double score = score_config(r, objective);
+                double best_score = score_config(best, objective);
+
+                if (score < best_score) {
+                    best = r;
+                }
+            }
+        }
+    }
+
+    if (best.latency_ms >= 999999) {
+        fprintf(stderr, "reranker_autotune: no config satisfies constraints, falling back...\n");
+        return lembed::detail::lembed_reranker_autotune(model_name, mode, objective, result);
+    }
+
+    fprintf(stderr, "reranker_autotune: best config: threads=%d batch=%d tokens=%d (P50=%.1fms, P95=%.1fms)\n",
+            best.threads, best.batch_size, best.max_tokens, best.latency_ms, best.p95_latency_ms);
+
+    *result = best;
+    return LEMBED_OK;
+}
+
 /* Reranker auto-tune with custom corpus */
 lembed_status_t lembed_reranker_autotune_custom(
     const char* model_name,
     const char* const* texts,
     int n_texts,
     lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
     /* For now, delegate to standard autotune */
-    return lembed::detail::lembed_reranker_autotune(model_name, mode, result);
+    return lembed_reranker_autotune_impl(model_name, mode, objective, result);
 }
 
 /* Auto-configure reranker for target latency */
 lembed_status_t lembed_reranker_auto_config(
     const char* model_name,
     double target_latency_ms,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
     if (!model_name || !result) return LEMBED_ERROR_INVALID_ARGUMENT;
@@ -815,7 +945,7 @@ lembed_status_t lembed_reranker_auto_config(
 
     if (best.latency_ms >= 999999) {
         /* No config fits budget — return fastest */
-        return lembed::detail::lembed_reranker_autotune(model_name, LEMBED_AUTOTUNE_QUICK, result);
+        return lembed_reranker_autotune_impl(model_name, LEMBED_AUTOTUNE_QUICK, objective, result);
     }
 
     *result = best;
@@ -838,7 +968,7 @@ lembed_status_t lembed_reranker_auto_config_profile(
         case LEMBED_PROFILE_QUALITY:     target_ms = 1000; break;
     }
 
-    return lembed::detail::lembed_reranker_auto_config(model_name, target_ms, result);
+    return lembed::detail::lembed_reranker_auto_config(model_name, target_ms, LEMBED_OBJECTIVE_BALANCED, result);
 }
 
 /* Clear reranker autotune cache */
@@ -867,9 +997,21 @@ extern "C" {
 lembed_status_t lembed_reranker_autotune(
     const char* model_name,
     lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
-    return lembed::detail::lembed_reranker_autotune(model_name, mode, result);
+    return lembed::detail::lembed_reranker_autotune(model_name, mode, objective, result);
+}
+
+lembed_status_t lembed_reranker_autotune_constrained(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    int min_tokens,
+    double max_latency_ms,
+    lembed_reranker_tuning_result_t* result)
+{
+    return lembed::detail::lembed_reranker_autotune_constrained(model_name, mode, objective, min_tokens, max_latency_ms, result);
 }
 
 lembed_status_t lembed_reranker_autotune_custom(
@@ -877,17 +1019,19 @@ lembed_status_t lembed_reranker_autotune_custom(
     const char* const* texts,
     int n_texts,
     lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
-    return lembed::detail::lembed_reranker_autotune_custom(model_name, texts, n_texts, mode, result);
+    return lembed::detail::lembed_reranker_autotune_custom(model_name, texts, n_texts, mode, objective, result);
 }
 
 lembed_status_t lembed_reranker_auto_config(
     const char* model_name,
     double target_latency_ms,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
-    return lembed::detail::lembed_reranker_auto_config(model_name, target_latency_ms, result);
+    return lembed::detail::lembed_reranker_auto_config(model_name, target_latency_ms, objective, result);
 }
 
 void lembed_reranker_autotune_clear_cache(const char* model_name)
@@ -1031,23 +1175,26 @@ lembed_status_t lembed_sparse_autotune(
         for (int w = 0; w < n_weight; w++) {
             for (int s = 0; s < n_storage; s++) {
                 current++;
+                int top_k = top_k_options[t];
+                float min_weight = min_weight_options[w];
+                int storage_format = storage_options[s];
+
                 fprintf(stderr, "  [%d/%d] top_k=%d min_weight=%.2f storage=%d\n",
-                        current, total, top_k_options[t], min_weight_options[w], storage_options[s]);
+                        current, total, top_k, min_weight, storage_format);
 
                 auto r = bench_sparse_config(
-                    model_name, top_k_options[t], min_weight_options[w],
-                    storage_options[s], threads, batch_size,
-                    texts, warmup, bench_iters);
+                    model_name, top_k, min_weight, storage_format,
+                    threads, batch_size, texts, warmup, bench_iters);
 
-                if (r.latency_ms < best.latency_ms) {
+                if (r.throughput_docs_sec > best.throughput_docs_sec) {
                     best = r;
                 }
             }
         }
     }
 
-    fprintf(stderr, "sparse_autotune: best config: top_k=%d min_weight=%.2f storage=%d (P50=%.1fms)\n",
-            best.top_k, best.min_weight, best.storage_format, best.latency_ms);
+    fprintf(stderr, "sparse_autotune: best config: top_k=%d min_weight=%.2f storage=%d (%.1f docs/s)\n",
+            best.top_k, best.min_weight, best.storage_format, best.throughput_docs_sec);
 
     *result = best;
     return LEMBED_OK;
@@ -1084,7 +1231,7 @@ lembed_status_t lembed_autotune_unified(
         }
         case LEMBED_TASK_RERANKING: {
             lembed_reranker_tuning_result_t rerank_result = {0};
-            lembed_status_t s = lembed::detail::lembed_reranker_autotune(model_name, mode, &rerank_result);
+            lembed_status_t s = lembed::detail::lembed_reranker_autotune(model_name, mode, LEMBED_OBJECTIVE_BALANCED, &rerank_result);
             if (s != LEMBED_OK) return s;
             result->threads = rerank_result.threads;
             result->batch_size = rerank_result.batch_size;
@@ -1130,7 +1277,7 @@ lembed_status_t lembed_autotune_unified_config(
         case LEMBED_TASK_RERANKING: {
             lembed_reranker_tuning_result_t rerank_result = {0};
             lembed_status_t s = lembed::detail::lembed_reranker_auto_config(
-                model_name, target_latency_ms, &rerank_result);
+                model_name, target_latency_ms, LEMBED_OBJECTIVE_BALANCED, &rerank_result);
             if (s != LEMBED_OK) return s;
             result->threads = rerank_result.threads;
             result->batch_size = rerank_result.batch_size;
@@ -1158,7 +1305,7 @@ void lembed_autotune_unified_clear_cache(lembed_task_t task, const char* model_n
             lembed_autotune_clear_cache(model_name);
             break;
         case LEMBED_TASK_RERANKING:
-            lembed::detail::lembed_reranker_autotune_clear_cache(model_name);
+            lembed_reranker_autotune_clear_cache(model_name);
             break;
         case LEMBED_TASK_IMAGE:
         case LEMBED_TASK_SPARSE:

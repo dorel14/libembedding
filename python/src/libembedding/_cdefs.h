@@ -364,9 +364,31 @@ typedef enum {
     LEMBED_PROFILE_QUALITY = 2
 } lembed_reranker_profile_t;
 
+/* Optimization objectives */
+typedef enum {
+    LEMBED_OBJECTIVE_LATENCY = 0,
+    LEMBED_OBJECTIVE_THROUGHPUT = 1,
+    LEMBED_OBJECTIVE_BALANCED = 2,
+    LEMBED_OBJECTIVE_MEMORY = 3
+} lembed_objective_t;
+
 lembed_status_t lembed_reranker_auto_config_profile(
     const char* model_name,
     lembed_reranker_profile_t profile,
+    lembed_reranker_tuning_result_t* result);
+
+lembed_status_t lembed_reranker_autotune(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    lembed_reranker_tuning_result_t* result);
+
+lembed_status_t lembed_reranker_autotune_constrained(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    int min_tokens,
+    double max_latency_ms,
     lembed_reranker_tuning_result_t* result);
 
 /* Unified Auto-Tuner */

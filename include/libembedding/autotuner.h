@@ -90,6 +90,14 @@ typedef struct {
     double p95_latency_ms;
 } lembed_reranker_tuning_result_t;
 
+/* Optimization objectives */
+typedef enum {
+    LEMBED_OBJECTIVE_LATENCY = 0,    /* minimize latency */
+    LEMBED_OBJECTIVE_THROUGHPUT = 1, /* maximize throughput */
+    LEMBED_OBJECTIVE_BALANCED = 2,   /* balance latency/throughput */
+    LEMBED_OBJECTIVE_MEMORY = 3,     /* minimize memory */
+} lembed_objective_t;
+
 /* Reranker profiles for auto-config */
 typedef enum {
     LEMBED_PROFILE_INTERACTIVE = 0,  /* latency priority: <100ms */
@@ -98,32 +106,51 @@ typedef enum {
 } lembed_reranker_profile_t;
 
 /* Run auto-tuning for a reranker model
- * Optimizes threads × batch_size × max_tokens for latency.
+ * Optimizes threads × batch_size × max_tokens for the given objective.
  * mode: QUICK (5-15s) or FULL (30-120s)
+ * objective: what to optimize for
  * result: output configuration
  * Returns LEMBED_OK on success. */
 lembed_status_t lembed_reranker_autotune(
     const char* model_name,
     lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    lembed_reranker_tuning_result_t* result);
+
+/* Run reranker auto-tuning with constraints
+ * min_tokens: minimum acceptable max_tokens (quality constraint)
+ * max_latency_ms: maximum acceptable latency
+ * Only considers configurations that satisfy both constraints */
+lembed_status_t lembed_reranker_autotune_constrained(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    int min_tokens,
+    double max_latency_ms,
     lembed_reranker_tuning_result_t* result);
 
 /* Run reranker auto-tuning with custom corpus
  * texts: array of text samples
  * n_texts: number of texts
- * avg_tokens: average token count (for calibration) */
+ * mode: QUICK or FULL
+ * objective: what to optimize for
+ * result: output configuration */
 lembed_status_t lembed_reranker_autotune_custom(
     const char* model_name,
     const char* const* texts,
     int n_texts,
     lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result);
 
 /* Auto-configure reranker for a target latency budget
  * target_latency_ms: maximum acceptable latency (e.g., 500ms)
+ * objective: what to optimize for within the budget
  * result: output configuration that fits within budget */
 lembed_status_t lembed_reranker_auto_config(
     const char* model_name,
     double target_latency_ms,
+    lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result);
 
 /* Auto-configure reranker using a profile

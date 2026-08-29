@@ -30,18 +30,32 @@
 
 **Conclusion**: Batching gives 22-27% improvement for transformer models, ~0% for ResNet.
 
+## Batch Benchmark Results
+
+| Model | Batch=1 | Batch=4 | Batch=8 | Batch=16 | Batch=32 | Optimal |
+|-------|---------|---------|---------|----------|----------|---------|
+| CLIP B/32 | 97.6 ms | 82.9 ms | 128.8 ms* | 70.0 ms | 69.4 ms | 32 (1.41x) |
+| ResNet-50 | 52.5 ms | 53.3 ms | 52.5 ms | 50.8 ms | 55.2 ms | 16 (1.03x) |
+| UNICOM B/32 | 77.1 ms | 69.2 ms | 73.1 ms | 72.6 ms | 79.3 ms | 4 (1.11x) |
+
+*CLIP batch=8 anomalie: plus lent que batch=4 et 16 (effet seuil memoire ORT)
+
 ## Roadmap
 
 - [x] Benchmark models
 - [x] Profile preprocessing vs inference
 - [x] Light pipeline optimization (zero-copy, CHW)
-- [ ] Benchmark batch 1→32
+- [x] Benchmark batch 1->32
 - [ ] Quantization benchmark
-- [ ] Quality benchmark (image→image, text→image)
+- [ ] Quality benchmark (image->image, text->image)
 - [ ] Storage/index cost measurement
 - [ ] Auto-tuner
 
-## Priority Order
+## Batch Results Summary
+
+- **CLIP B/32**: batch 32 optimal, 1.41x speedup (69.4 ms/img)
+- **ResNet-50**: batch 16 optimal, 1.03x speedup (50.8 ms/img) — minimal gain
+- **UNICOM B/32**: batch 4 optimal, 1.11x speedup (69.2 ms/img)
 
 1. Model choice (biggest lever)
 2. Batching (22-27% gain)

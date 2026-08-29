@@ -78,20 +78,3 @@ lembed_status_t lembed_auto_select_model(
 void lembed_autotune_clear_cache(const char* model_name) {
     lembed::detail::clear_cache(model_name);
 }
-
-/* Sparse auto-tuner wrapper */
-lembed_status_t lembed_sparse_autotune(
-        const char* model_name,
-        lembed_autotune_mode_t mode,
-        lembed_sparse_tuning_result_t* result);
-
-/* Force linker to include sparse_autotune */
-static const void* const _sparse_autotune_ref = (const void*)&lembed_sparse_autotune;
-
-lembed_status_t lembed_sparse_autotune(
-        const char* model_name,
-        lembed_autotune_mode_t mode,
-        lembed_sparse_tuning_result_t* result) {
-    if (!model_name || !result) return LEMBED_ERROR_INVALID_ARGUMENT;
-    return lembed::detail::lembed_sparse_autotune(model_name, mode, result);
-}

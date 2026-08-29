@@ -182,25 +182,109 @@ def reranker_autotune(
     model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
     *,
     full: bool = False,
+    objective: str = "balanced",
 ) -> "RerankerTuningResult":
     """Run auto-tuning to find optimal reranker configuration.
 
     Args:
         model_name: Model name (e.g. "jinaai/jina-reranker-v1-turbo-en-quantized")
-        full: If True, run FULL mode (30-120s) for more thorough search.
-              If False (default), run QUICK mode (5-15s).
+        full: If True, run FULL mode (30-120s), else QUICK (5-15s)
+        objective: "latency", "throughput", "balanced", or "memory"
 
     Returns:
         RerankerTuningResult with optimal threads, batch_size, max_tokens.
 
     Example:
-        >>> result = reranker_autotune("jinaai/jina-reranker-v1-turbo-en-quantized")
+        >>> result = reranker_autotune("jinaai/jina-reranker-v1-turbo-en-quantized", objective="latency")
         >>> print(f"Optimal: {result.threads} threads, batch={result.batch_size}, tokens={result.max_tokens}")
     """
     mode = lib.LEMBED_AUTOTUNE_FULL if full else lib.LEMBED_AUTOTUNE_QUICK
+    obj_map = {
+        "latency": lib.LEMBED_OBJECTIVE_LATENCY,
+        "throughput": lib.LEMBED_OBJECTIVE_THROUGHPUT,
+        "balanced": lib.LEMBED_OBJECTIVE_BALANCED,
+        "memory": lib.LEMBED_OBJECTIVE_MEMORY,
+    }
+    if objective not in obj_map:
+        raise ValueError(f"Unknown objective '{objective}'. Use: {list(obj_map.keys())}")
+
     result = ffi.new("lembed_reranker_tuning_result_t *")
 
-    check_status(lib.lembed_reranker_autotune(model_name.encode("utf-8"), mode, result))
+    # Resolve model name to code
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_reranker_models(models_ptr, count_ptr))
+    code = model_name
+    for i in range(count_ptr[0]):
+        name = ffi.string(models_ptr[0][i].model_name).decode()
+        model_code = ffi.string(models_ptr[0][i].model_code).decode()
+        if model_name in (name, model_code):
+            code = model_code
+            break
+
+    check_status(lib.lembed_reranker_autotune(code.encode("utf-8"), mode, obj_map[objective], result))
+
+    return RerankerTuningResult(
+        threads=result.threads,
+        batch_size=result.batch_size,
+        max_tokens=result.max_tokens,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        p95_latency_ms=result.p95_latency_ms,
+        memory_mb=result.memory_mb,
+    )
+
+
+def reranker_autotune_constrained(
+    model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
+    *,
+    full: bool = False,
+    objective: str = "balanced",
+    min_tokens: int = 64,
+    max_latency_ms: float = 500.0,
+) -> "RerankerTuningResult":
+    """Run auto-tuning with quality constraints.
+
+    Args:
+        model_name: Model name
+        full: If True, run FULL mode (30-120s), else QUICK (5-15s)
+        objective: "latency", "throughput", "balanced", or "memory"
+        min_tokens: Minimum acceptable max_tokens (quality constraint)
+        max_latency_ms: Maximum acceptable latency in ms
+
+    Returns:
+        RerankerTuningResult that satisfies constraints.
+
+    Example:
+        >>> result = reranker_autotune_constrained(min_tokens=128, max_latency_ms=200)
+        >>> print(f"Config: {result.threads} threads, {result.max_tokens} tokens")
+    """
+    mode = lib.LEMBED_AUTOTUNE_FULL if full else lib.LEMBED_AUTOTUNE_QUICK
+    obj_map = {
+        "latency": lib.LEMBED_OBJECTIVE_LATENCY,
+        "throughput": lib.LEMBED_OBJECTIVE_THROUGHPUT,
+        "balanced": lib.LEMBED_OBJECTIVE_BALANCED,
+        "memory": lib.LEMBED_OBJECTIVE_MEMORY,
+    }
+    if objective not in obj_map:
+        raise ValueError(f"Unknown objective '{objective}'. Use: {list(obj_map.keys())}")
+
+    result = ffi.new("lembed_reranker_tuning_result_t *")
+
+    # Resolve model name to code
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_reranker_models(models_ptr, count_ptr))
+    code = model_name
+    for i in range(count_ptr[0]):
+        name = ffi.string(models_ptr[0][i].model_name).decode()
+        model_code = ffi.string(models_ptr[0][i].model_code).decode()
+        if model_name in (name, model_code):
+            code = model_code
+            break
+
+    check_status(lib.lembed_reranker_autotune_constrained(
+        code.encode("utf-8"), mode, obj_map[objective], min_tokens, max_latency_ms, result))
 
     return RerankerTuningResult(
         threads=result.threads,

@@ -9,7 +9,7 @@ except PackageNotFoundError:
 from .text_embedding import TextEmbedding, TextEmbeddingPool, autotune, auto_select_model, clear_autotune_cache, autotune_unified
 from .sparse_text_embedding import SparseTextEmbedding
 from .image_embedding import ImageEmbedding
-from .reranker import Reranker, reranker_autotune, reranker_auto_config, clear_reranker_autotune_cache, reranker_auto_config_profile
+from .reranker import Reranker, reranker_autotune, reranker_auto_config, clear_reranker_autotune_cache, reranker_auto_config_profile, reranker_autotune_constrained
 from .types import SparseEmbedding, RerankResult, ModelInfo, ModelDesc, Stats, TuningResult, RerankerTuningResult, UnifiedTuningResult, ModelSelectionResult
 from .models import (
     list_text_models,
@@ -46,6 +46,7 @@ __all__ = [
     "UnifiedTuningResult",
     "autotune_unified",
     "reranker_autotune",
+    "reranker_autotune_constrained",
     "reranker_auto_config",
     "reranker_auto_config_profile",
     "clear_reranker_autotune_cache",

@@ -302,23 +302,6 @@ typedef struct {
 } lembed_user_defined_model_t;
 
 /* =========================================================================
- * Sparse Auto-Tuning
- * ========================================================================= */
-
-typedef struct {
-    int pruning_threshold;   /* min weight to keep (0.0 = no pruning) */
-    int top_k;               /* max terms per document (0 = all) */
-    int quantization;        /* lembed_quantization_t */
-    int storage_format;      /* 0=dict, 1=CSR, 2=numpy */
-    double throughput_docs_sec;
-    double memory_mb;
-} lembed_sparse_autotune_result_t;
-
-lembed_status_t lembed_sparse_autotune(
-    const char* model_name,
-    lembed_sparse_autotune_result_t* result);
-
-/* =========================================================================
  * Memory Free Functions (forward declarations)
  * ========================================================================= */
 
