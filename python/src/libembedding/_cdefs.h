@@ -327,20 +327,6 @@ typedef enum {
     LEMBED_AUTOTUNE_FULL
 } lembed_autotune_mode_t;
 
-typedef struct {
-    char model_name[256];
-    int workers;
-    int threads;
-    int batch_size;
-    double throughput_docs_sec;
-    double latency_ms;
-    double memory_mb;
-} lembed_tuning_result_t;
-
-int lembed_autotune(const char* model_name, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
-int lembed_autotune_custom(const char* model_name, const char* const* texts, int n_texts, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
-void lembed_autotune_clear_cache(const char* model_name);
-
 /* Reranker Autotuner */
 typedef struct {
     int threads;
@@ -351,11 +337,6 @@ typedef struct {
     double memory_mb;
     double p95_latency_ms;
 } lembed_reranker_tuning_result_t;
-
-lembed_status_t lembed_reranker_autotune(const char* model_name, lembed_autotune_mode_t mode, lembed_reranker_tuning_result_t* result);
-lembed_status_t lembed_reranker_autotune_custom(const char* model_name, const char* const* texts, int n_texts, lembed_autotune_mode_t mode, lembed_reranker_tuning_result_t* result);
-lembed_status_t lembed_reranker_auto_config(const char* model_name, double target_latency_ms, lembed_reranker_tuning_result_t* result);
-void lembed_reranker_autotune_clear_cache(const char* model_name);
 
 /* Reranker profiles */
 typedef enum {
@@ -376,6 +357,28 @@ lembed_status_t lembed_reranker_auto_config_profile(
     const char* model_name,
     lembed_reranker_profile_t profile,
     lembed_reranker_tuning_result_t* result);
+
+lembed_status_t lembed_reranker_autotune(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    lembed_reranker_tuning_result_t* result);
+
+lembed_status_t lembed_reranker_autotune_constrained(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_objective_t objective,
+    int min_tokens,
+    double max_latency_ms,
+    lembed_reranker_tuning_result_t* result);
+
+lembed_status_t lembed_reranker_auto_config(
+    const char* model_name,
+    double target_latency_ms,
+    lembed_objective_t objective,
+    lembed_reranker_tuning_result_t* result);
+
+void lembed_reranker_autotune_clear_cache(const char* model_name);
 
 lembed_status_t lembed_reranker_autotune(
     const char* model_name,
@@ -467,25 +470,6 @@ typedef struct {
 
 int lembed_model_select(int logical_cores, int ram_mb, lembed_use_case_t use_case, lembed_model_candidate_t* out_selected);
 int lembed_detect_hardware(lembed_hardware_info_t* out_info);
-
-/* Autotuner */
-typedef struct {
-    int workers;
-    int threads;
-    int batch_size;
-    double throughput_docs_sec;
-    double latency_ms;
-    double memory_mb;
-} lembed_tuning_result_t;
-
-typedef enum {
-    LEMBED_AUTOTUNE_QUICK = 0,
-    LEMBED_AUTOTUNE_FULL = 1
-} lembed_autotune_mode_t;
-
-lembed_status_t lembed_autotune(const char* model_name, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
-lembed_status_t lembed_autotune_custom(const char* model_name, const char* const* texts, int n_texts, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
-void lembed_autotune_clear_cache(const char* model_name);
 
 /* Auto model selection */
 typedef struct {
