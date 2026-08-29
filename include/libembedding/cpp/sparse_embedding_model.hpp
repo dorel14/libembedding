@@ -11,6 +11,7 @@
 #include <libembedding/sparse_text_embedding.h>
 #include <libembedding/model_loader.h>
 #include <libembedding/cpp/provider.hpp>
+#include <libembedding/detail/status_helper.hpp>
 
 #include <filesystem>
 #include <stdexcept>
@@ -56,9 +57,9 @@ public:
         int idx = lembed_find_sparse_model_by_code(model.c_str());
         if (idx >= 0) {
             c_opts.model = (lembed_sparse_model_t)idx;
-            check_or_throw(lembed_sparse_text_embedding_create(&c_opts, &ctx_));
+            detail::check_status(lembed_sparse_text_embedding_create(&c_opts, &ctx_));
         } else if (std::filesystem::exists(model)) {
-            check_or_throw(lembed_sparse_text_embedding_create_from_path(
+            detail::check_status(lembed_sparse_text_embedding_create_from_path(
                 model.c_str(), &c_opts, &ctx_));
         } else {
             throw std::invalid_argument("Unknown model or path: " + model);
@@ -94,7 +95,7 @@ public:
         for (const auto& t : texts) c_texts.push_back(t.c_str());
 
         lembed_sparse_embeddings_t result = {0};
-        check_or_throw(lembed_sparse_text_embedding_embed(
+        detail::check_status(lembed_sparse_text_embedding_embed(
             ctx_, c_texts.data(), (int)texts.size(), batch_size, &result));
 
         std::vector<SparseVector> embeddings;
@@ -151,13 +152,6 @@ public:
 private:
     lembed_sparse_embedding_ctx_t* ctx_ = nullptr;
     std::string                    cache_dir_buf_;
-
-    static void check_or_throw(lembed_status_t s) {
-        if (s != LEMBED_OK) {
-            throw std::runtime_error(
-                std::string("libembedding error: ") + lembed_last_error());
-        }
-    }
 };
 
 } /* namespace lembed */

@@ -11,6 +11,7 @@
 #include <libembedding/text_embedding.h>
 #include <libembedding/model_loader.h>
 #include <libembedding/cpp/provider.hpp>
+#include <libembedding/detail/status_helper.hpp>
 
 #include <filesystem>
 #include <stdexcept>
@@ -55,9 +56,9 @@ public:
         int idx = lembed_find_text_model_by_code(model.c_str());
         if (idx >= 0) {
             c_opts.model = (lembed_text_model_t)idx;
-            check_or_throw(lembed_text_embedding_create(&c_opts, &ctx_));
+            detail::check_status(lembed_text_embedding_create(&c_opts, &ctx_));
         } else if (std::filesystem::exists(model)) {
-            check_or_throw(lembed_text_embedding_create_from_path(
+            detail::check_status(lembed_text_embedding_create_from_path(
                 model.c_str(), &c_opts, &ctx_));
         } else {
             throw std::invalid_argument("Unknown model or path: " + model);
@@ -96,7 +97,7 @@ public:
         for (const auto& t : texts) c_texts.push_back(t.c_str());
 
         lembed_embeddings_t result = {0};
-        check_or_throw(lembed_text_embedding_embed(
+        detail::check_status(lembed_text_embedding_embed(
             ctx_, c_texts.data(), (int)texts.size(), batch_size, &result));
 
         std::vector<std::vector<float>> embeddings;
@@ -150,7 +151,7 @@ public:
                       Callback callback) {
         if (texts.empty()) return;
         int bs = (batch_size <= 0) ? ctx_->batch_size : batch_size;
-        check_or_throw(lembed_text_embedding_embed_stream(
+        detail::check_status(lembed_text_embedding_embed_stream(
             ctx_,
             reinterpret_cast<const char* const*>(texts.data()),
             (int)texts.size(), bs,
@@ -172,14 +173,6 @@ private:
     lembed_text_embedding_t* ctx_ = nullptr;
     int                       dim_ = 0;
     std::string               cache_dir_buf_;
-
-    static void check_or_throw(lembed_status_t s) {
-        if (s != LEMBED_OK) {
-            throw std::runtime_error(
-                std::string("libembedding error: ") +
-                lembed_last_error());
-        }
-    }
 };
 
 } /* namespace lembed */

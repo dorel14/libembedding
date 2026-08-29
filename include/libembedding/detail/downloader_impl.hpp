@@ -192,6 +192,14 @@ inline bool download_hf_file(const std::string& repo, const std::string& filenam
     return true;
 }
 
+/* Check if a filename is an optional tokenizer/config file */
+inline bool is_optional_file(const std::string& filename) {
+    return (filename == "tokenizer.json" ||
+            filename == "tokenizer_config.json" ||
+            filename == "special_tokens_map.json" ||
+            filename == "config.json");
+}
+
 /*
  * Ensure all model files are present in cache.
  * Returns the cache directory path containing the model files.
@@ -238,11 +246,7 @@ inline std::string ensure_model(const std::string& repo_code,
 
         /* In offline mode, never attempt download */
         if (offline) {
-            bool is_optional = (f == "tokenizer.json" ||
-                               f == "tokenizer_config.json" ||
-                               f == "special_tokens_map.json" ||
-                               f == "config.json");
-            if (!is_optional) {
+            if (!is_optional_file(f)) {
                 throw std::runtime_error(
                     "Model file not in cache (offline mode): " + dest);
             }
@@ -250,13 +254,8 @@ inline std::string ensure_model(const std::string& repo_code,
         }
 
         /* tokenizer/config files are optional */
-        bool is_optional = (f == "tokenizer.json" ||
-                           f == "tokenizer_config.json" ||
-                           f == "special_tokens_map.json" ||
-                           f == "config.json");
-
         bool ok = download_hf_file(repo_code, f, dest, pfn, nullptr);
-        if (!ok && !is_optional) {
+        if (!ok && !is_optional_file(f)) {
             throw std::runtime_error("Failed to download: " + repo_code + "/" + f);
         }
     }

@@ -11,6 +11,7 @@
 #include <libembedding/reranker.h>
 #include <libembedding/model_loader.h>
 #include <libembedding/cpp/provider.hpp>
+#include <libembedding/detail/status_helper.hpp>
 
 #include <filesystem>
 #include <stdexcept>
@@ -67,9 +68,9 @@ public:
 
         if (idx >= 0) {
             c_opts.model = (lembed_reranker_model_t)idx;
-            check_or_throw(lembed_reranker_create(&c_opts, &ctx_));
+            detail::check_status(lembed_reranker_create(&c_opts, &ctx_));
         } else if (std::filesystem::exists(model)) {
-            check_or_throw(lembed_reranker_create_from_path(
+            detail::check_status(lembed_reranker_create_from_path(
                 model.c_str(), &c_opts, &ctx_));
         } else {
             throw std::invalid_argument("Unknown model or path: " + model);
@@ -106,7 +107,7 @@ public:
         for (const auto& d : documents) c_docs.push_back(d.c_str());
 
         lembed_rerank_results_t result = {0};
-        check_or_throw(lembed_reranker_rerank(
+        detail::check_status(lembed_reranker_rerank(
             ctx_, query.c_str(), c_docs.data(), (int)documents.size(),
             batch_size, &result));
 
@@ -160,13 +161,6 @@ public:
 private:
     lembed_reranker_t*    ctx_ = nullptr;
     std::string           cache_dir_buf_;
-
-    static void check_or_throw(lembed_status_t s) {
-        if (s != LEMBED_OK) {
-            throw std::runtime_error(
-                std::string("libembedding error: ") + lembed_last_error());
-        }
-    }
 };
 
 } /* namespace lembed */

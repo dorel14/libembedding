@@ -380,20 +380,6 @@ lembed_status_t lembed_reranker_auto_config(
 
 void lembed_reranker_autotune_clear_cache(const char* model_name);
 
-lembed_status_t lembed_reranker_autotune(
-    const char* model_name,
-    lembed_autotune_mode_t mode,
-    lembed_objective_t objective,
-    lembed_reranker_tuning_result_t* result);
-
-lembed_status_t lembed_reranker_autotune_constrained(
-    const char* model_name,
-    lembed_autotune_mode_t mode,
-    lembed_objective_t objective,
-    int min_tokens,
-    double max_latency_ms,
-    lembed_reranker_tuning_result_t* result);
-
 /* Unified Auto-Tuner */
 typedef enum {
     LEMBED_TASK_EMBEDDING = 0,

@@ -11,6 +11,7 @@
 #include <libembedding/image_embedding.h>
 #include <libembedding/model_loader.h>
 #include <libembedding/cpp/provider.hpp>
+#include <libembedding/detail/status_helper.hpp>
 
 #include <filesystem>
 #include <stdexcept>
@@ -49,11 +50,11 @@ public:
         c_opts.dim = opts.dim;
 
         if (std::filesystem::exists(model)) {
-            check_or_throw(lembed_image_embedding_create_from_path(
+            detail::check_status(lembed_image_embedding_create_from_path(
                 model.c_str(), &c_opts, &ctx_));
         } else {
             c_opts.model = resolve_image_model(model);
-            check_or_throw(lembed_image_embedding_create(&c_opts, &ctx_));
+            detail::check_status(lembed_image_embedding_create(&c_opts, &ctx_));
         }
 
         dim_ = lembed_image_embedding_dim(ctx_);
@@ -89,7 +90,7 @@ public:
         for (const auto& p : paths) c_paths.push_back(p.c_str());
 
         lembed_embeddings_t result = {0};
-        check_or_throw(lembed_image_embedding_embed_files(
+        detail::check_status(lembed_image_embedding_embed_files(
             ctx_, c_paths.data(), (int)paths.size(), batch_size, &result));
 
         return to_vector(result);
@@ -109,7 +110,7 @@ public:
         }
 
         lembed_embeddings_t result = {0};
-        check_or_throw(lembed_image_embedding_embed_bytes(
+        detail::check_status(lembed_image_embedding_embed_bytes(
             ctx_, c_data.data(), c_sizes.data(), (int)images.size(), batch_size, &result));
 
         return to_vector(result);
@@ -181,13 +182,6 @@ private:
         }
         lembed_embeddings_free(const_cast<lembed_embeddings_t*>(&result));
         return embeddings;
-    }
-
-    static void check_or_throw(lembed_status_t s) {
-        if (s != LEMBED_OK) {
-            throw std::runtime_error(
-                std::string("libembedding error: ") + lembed_last_error());
-        }
     }
 };
 
