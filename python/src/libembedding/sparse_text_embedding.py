@@ -31,6 +31,8 @@ class SparseTextEmbedding:
         batch_size: Internal batch size (default 256).
         offline: If True, use cached models only (default False).
         show_download_progress: Show download progress bar.
+        top_terms: Max number of terms to keep per document (0 = all).
+        min_weight: Minimum weight threshold for pruning (0.0 = no pruning).
         num_threads: Deprecated; use ``threads``.
     """
 
@@ -46,6 +48,8 @@ class SparseTextEmbedding:
         batch_size: int = 256,
         offline: bool = False,
         show_download_progress: bool = True,
+        top_terms: int = 0,
+        min_weight: float = 0.0,
         num_threads: int | None = None,
     ):
         if num_threads is not None:
@@ -68,6 +72,8 @@ class SparseTextEmbedding:
         opts.batch_size = batch_size
         opts.offline = int(offline)
         opts.show_download_progress = int(show_download_progress)
+        opts.top_k = top_terms
+        opts.min_weight = min_weight
 
         ctx_ptr = ffi.new("lembed_sparse_embedding_ctx_t **")
 
@@ -85,6 +91,7 @@ class SparseTextEmbedding:
 
         self._ctx = ffi.gc(ctx_ptr[0], lib.lembed_sparse_text_embedding_free)
         self._batch_size = batch_size
+        self._sparse_opts = opts
 
     @staticmethod
     def list_supported_models():

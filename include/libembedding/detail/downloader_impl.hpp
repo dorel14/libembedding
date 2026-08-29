@@ -238,7 +238,8 @@ inline std::string ensure_model(const std::string& repo_code,
 
         /* In offline mode, never attempt download */
         if (offline) {
-            bool is_optional = (f == "tokenizer_config.json" ||
+            bool is_optional = (f == "tokenizer.json" ||
+                               f == "tokenizer_config.json" ||
                                f == "special_tokens_map.json" ||
                                f == "config.json");
             if (!is_optional) {
@@ -249,7 +250,9 @@ inline std::string ensure_model(const std::string& repo_code,
         }
 
         /* tokenizer/config files are optional (don't fail if missing for some) */
-        bool is_optional = (f == "tokenizer_config.json" ||
+        /* Image/vision models don't need tokenizer files — only text models do */
+        bool is_optional = (f == "tokenizer.json" ||
+                           f == "tokenizer_config.json" ||
                            f == "special_tokens_map.json" ||
                            f == "config.json");
 

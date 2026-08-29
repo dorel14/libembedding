@@ -91,3 +91,18 @@ target_compile_definitions(long_text_bench PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
 add_executable(autotuner_test autotuner_test.cpp)
 target_link_libraries(autotuner_test PRIVATE libembedding)
 target_compile_definitions(autotuner_test PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
+
+if(NOT WIN32 AND ONNXRuntime_LIBRARIES)
+    set(_all_benchmarks
+        bench_libembedding quick_bench bench_cached profile_bench detail_profile
+        token_profile memcpy_profile parallel_profile inference_profile optimal_profile
+        matrix_bench minilm_bench model_compare verify_bench repro_bench long_bench
+        prod_bench robustness_bench rigorous_bench stress_mem debug_consistency
+        fair_compare long_text_bench autotuner_test
+    )
+    foreach(_t IN LISTS _all_benchmarks)
+        if(TARGET ${_t})
+            copy_runtime_libs(${_t})
+        endif()
+    endforeach()
+endif()

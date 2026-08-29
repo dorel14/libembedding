@@ -139,10 +139,11 @@ typedef enum {
     LEMBED_RERANKER_BGE_V2_M3,
     LEMBED_RERANKER_JINA_V1_TURBO_EN,
     LEMBED_RERANKER_JINA_V2_BASE_MULTILINGUAL,
+    LEMBED_RERANKER_JINA_V1_TURBO_EN_QUANTIZED,  /* INT8 quantized, 4x smaller */
     LEMBED_RERANKER_MODEL_COUNT,
 } lembed_reranker_model_t;
 
-#define LEMBED_RERANKER_MODEL_DEFAULT LEMBED_RERANKER_BGE_BASE
+#define LEMBED_RERANKER_MODEL_DEFAULT LEMBED_RERANKER_JINA_V1_TURBO_EN_QUANTIZED
 
 /* =========================================================================
  * Model Info (returned by registry queries)
@@ -258,6 +259,9 @@ typedef struct {
     int                         show_download_progress;
     int                         batch_size;
     int                         offline;
+    int                         top_k;        /* max terms to keep (0 = all) */
+    float                       min_weight;   /* pruning threshold */
+    int                         storage_format; /* 0=dict, 1=CSR, 2=numpy */
 } lembed_sparse_options_t;
 
 typedef struct {
@@ -296,6 +300,23 @@ typedef struct {
     int                  dim;
     int                  max_length;
 } lembed_user_defined_model_t;
+
+/* =========================================================================
+ * Sparse Auto-Tuning
+ * ========================================================================= */
+
+typedef struct {
+    int pruning_threshold;   /* min weight to keep (0.0 = no pruning) */
+    int top_k;               /* max terms per document (0 = all) */
+    int quantization;        /* lembed_quantization_t */
+    int storage_format;      /* 0=dict, 1=CSR, 2=numpy */
+    double throughput_docs_sec;
+    double memory_mb;
+} lembed_sparse_autotune_result_t;
+
+lembed_status_t lembed_sparse_autotune(
+    const char* model_name,
+    lembed_sparse_autotune_result_t* result);
 
 /* =========================================================================
  * Memory Free Functions (forward declarations)

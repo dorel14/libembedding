@@ -198,6 +198,9 @@ typedef struct {
     int                         show_download_progress;
     int                         batch_size;
     int                         offline;
+    int                         top_k;
+    float                       min_weight;
+    int                         storage_format;
 } lembed_sparse_options_t;
 
 typedef struct {
@@ -317,6 +320,126 @@ float lembed_euclidean_distance(const float* a, const float* b, int dim);
 void lembed_embeddings_free(lembed_embeddings_t* result);
 void lembed_sparse_embeddings_free(lembed_sparse_embeddings_t* result);
 void lembed_rerank_results_free(lembed_rerank_results_t* result);
+
+/* Autotuner */
+typedef enum {
+    LEMBED_AUTOTUNE_QUICK = 0,
+    LEMBED_AUTOTUNE_FULL
+} lembed_autotune_mode_t;
+
+typedef struct {
+    char model_name[256];
+    int workers;
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+} lembed_tuning_result_t;
+
+int lembed_autotune(const char* model_name, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
+int lembed_autotune_custom(const char* model_name, const char* const* texts, int n_texts, lembed_autotune_mode_t mode, lembed_tuning_result_t* result);
+void lembed_autotune_clear_cache(const char* model_name);
+
+/* Reranker Autotuner */
+typedef struct {
+    int threads;
+    int batch_size;
+    int max_tokens;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+    double p95_latency_ms;
+} lembed_reranker_tuning_result_t;
+
+lembed_status_t lembed_reranker_autotune(const char* model_name, lembed_autotune_mode_t mode, lembed_reranker_tuning_result_t* result);
+lembed_status_t lembed_reranker_autotune_custom(const char* model_name, const char* const* texts, int n_texts, lembed_autotune_mode_t mode, lembed_reranker_tuning_result_t* result);
+lembed_status_t lembed_reranker_auto_config(const char* model_name, double target_latency_ms, lembed_reranker_tuning_result_t* result);
+void lembed_reranker_autotune_clear_cache(const char* model_name);
+
+/* Reranker profiles */
+typedef enum {
+    LEMBED_PROFILE_INTERACTIVE = 0,
+    LEMBED_PROFILE_BALANCED = 1,
+    LEMBED_PROFILE_QUALITY = 2
+} lembed_reranker_profile_t;
+
+lembed_status_t lembed_reranker_auto_config_profile(
+    const char* model_name,
+    lembed_reranker_profile_t profile,
+    lembed_reranker_tuning_result_t* result);
+
+/* Unified Auto-Tuner */
+typedef enum {
+    LEMBED_TASK_EMBEDDING = 0,
+    LEMBED_TASK_RERANKING = 1,
+    LEMBED_TASK_IMAGE = 2,
+    LEMBED_TASK_SPARSE = 3
+} lembed_task_t;
+
+typedef struct {
+    int task;
+    int threads;
+    int batch_size;
+    int workers;
+    int max_tokens;
+    double throughput_docs_sec;
+    double latency_ms;
+    double p95_latency_ms;
+    double memory_mb;
+} lembed_unified_tuning_result_t;
+
+lembed_status_t lembed_autotune_unified(
+    lembed_task_t task,
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_unified_tuning_result_t* result);
+
+lembed_status_t lembed_autotune_unified_config(
+    lembed_task_t task,
+    const char* model_name,
+    double target_latency_ms,
+    lembed_unified_tuning_result_t* result);
+
+void lembed_autotune_unified_clear_cache(lembed_task_t task, const char* model_name);
+
+/* Sparse autotune */
+typedef struct {
+    int pruning_threshold;
+    int top_k;
+    int quantization;
+    int storage_format;
+    double throughput_docs_sec;
+    double memory_mb;
+} lembed_sparse_autotune_result_t;
+
+int lembed_sparse_autotune(const char* model_name, lembed_sparse_autotune_result_t* result);
+
+/* Model selector */
+typedef enum {
+    LEMBED_USE_CASE_SPEED = 0,
+    LEMBED_USE_CASE_QUALITY,
+    LEMBED_USE_CASE_BALANCED
+} lembed_use_case_t;
+
+typedef struct {
+    char model_name[256];
+    int dim;
+    int max_length;
+    int pooling;
+    int estimated_ram_mb;
+    double estimated_throughput;
+} lembed_model_candidate_t;
+
+typedef struct {
+    char cpu_model[256];
+    int physical_cores;
+    int logical_cores;
+    int ram_mb;
+} lembed_hardware_info_t;
+
+int lembed_model_select(int logical_cores, int ram_mb, lembed_use_case_t use_case, lembed_model_candidate_t* out_selected);
+int lembed_detect_hardware(lembed_hardware_info_t* out_info);
 
 /* Autotuner */
 typedef struct {

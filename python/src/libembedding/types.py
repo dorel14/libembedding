@@ -70,6 +70,34 @@ class TuningResult:
 
 
 @dataclass(frozen=True)
+class RerankerTuningResult:
+    """Result of reranker auto-tuning for optimal performance."""
+
+    threads: int
+    batch_size: int
+    max_tokens: int
+    throughput_docs_sec: float
+    latency_ms: float
+    p95_latency_ms: float
+    memory_mb: float
+
+
+@dataclass(frozen=True)
+class UnifiedTuningResult:
+    """Result of unified auto-tuning for any task type."""
+
+    task: str
+    threads: int
+    batch_size: int
+    workers: int
+    max_tokens: int
+    throughput_docs_sec: float
+    latency_ms: float
+    p95_latency_ms: float
+    memory_mb: float
+
+
+@dataclass(frozen=True)
 class ModelSelectionResult:
     """Result of automatic model selection."""
 

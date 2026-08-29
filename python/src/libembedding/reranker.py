@@ -13,7 +13,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import RerankResult, ModelDesc, Stats
+from .types import RerankResult, ModelDesc, Stats, RerankerTuningResult
 from .exceptions import ModelNotFoundError
 
 
@@ -89,6 +89,27 @@ class Reranker:
         """Return a list of all supported reranker models."""
         return list_reranker_models()
 
+    @staticmethod
+    def auto(profile: str = "balanced", **kwargs) -> "Reranker":
+        """Create a Reranker with automatic configuration based on profile.
+
+        This is the recommended way to create a Reranker — it automatically
+        selects the optimal model and configuration for your hardware.
+
+        Args:
+            profile: "fast" (INT8, minimal latency), "balanced" (~300ms), or "quality" (FP32, best ranking)
+            **kwargs: Additional arguments passed to Reranker constructor
+
+        Returns:
+            Configured Reranker instance.
+
+        Example:
+            >>> reranker = Reranker.auto("fast")  # INT8, minimal latency
+            >>> reranker = Reranker.auto("balanced")  # Good quality/speed
+            >>> reranker = Reranker.auto("quality")  # FP32, best ranking
+        """
+        return Reranker_auto(profile, **kwargs)
+
     def rerank(
         self, query: str, documents: list[str], *, batch_size: int | None = None
     ) -> list[RerankResult]:
@@ -155,3 +176,176 @@ class Reranker:
 
     def __exit__(self, *args):
         self.close()
+
+
+def reranker_autotune(
+    model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
+    *,
+    full: bool = False,
+) -> "RerankerTuningResult":
+    """Run auto-tuning to find optimal reranker configuration.
+
+    Args:
+        model_name: Model name (e.g. "jinaai/jina-reranker-v1-turbo-en-quantized")
+        full: If True, run FULL mode (30-120s) for more thorough search.
+              If False (default), run QUICK mode (5-15s).
+
+    Returns:
+        RerankerTuningResult with optimal threads, batch_size, max_tokens.
+
+    Example:
+        >>> result = reranker_autotune("jinaai/jina-reranker-v1-turbo-en-quantized")
+        >>> print(f"Optimal: {result.threads} threads, batch={result.batch_size}, tokens={result.max_tokens}")
+    """
+    mode = lib.LEMBED_AUTOTUNE_FULL if full else lib.LEMBED_AUTOTUNE_QUICK
+    result = ffi.new("lembed_reranker_tuning_result_t *")
+
+    check_status(lib.lembed_reranker_autotune(model_name.encode("utf-8"), mode, result))
+
+    return RerankerTuningResult(
+        threads=result.threads,
+        batch_size=result.batch_size,
+        max_tokens=result.max_tokens,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        p95_latency_ms=result.p95_latency_ms,
+        memory_mb=result.memory_mb,
+    )
+
+
+def reranker_auto_config(
+    model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
+    target_latency_ms: float = 500.0,
+) -> "RerankerTuningResult":
+    """Auto-configure reranker to fit within a latency budget.
+
+    Args:
+        model_name: Model name
+        target_latency_ms: Maximum acceptable latency in ms (e.g. 500)
+
+    Returns:
+        RerankerTuningResult that fits within the budget.
+
+    Example:
+        >>> result = reranker_auto_config(target_latency_ms=300)
+        >>> print(f"Config: {result.threads} threads, {result.max_tokens} tokens")
+    """
+    result = ffi.new("lembed_reranker_tuning_result_t *")
+
+    # Resolve model code
+    models_ptr = ffi.new("lembed_model_info_t const **")
+    count_ptr = ffi.new("int *")
+    check_status(lib.lembed_list_reranker_models(models_ptr, count_ptr))
+    code = model_name
+    for i in range(count_ptr[0]):
+        name = ffi.string(models_ptr[0][i].model_name).decode()
+        model_code = ffi.string(models_ptr[0][i].model_code).decode()
+        if model_name in (name, model_code):
+            code = model_code
+            break
+
+    check_status(lib.lembed_reranker_auto_config(code.encode("utf-8"), target_latency_ms, result))
+
+    return RerankerTuningResult(
+        threads=result.threads,
+        batch_size=result.batch_size,
+        max_tokens=result.max_tokens,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        p95_latency_ms=result.p95_latency_ms,
+        memory_mb=result.memory_mb,
+    )
+
+
+def clear_reranker_autotune_cache(model_name: str = None) -> None:
+    """Clear reranker autotune cache for a model (or all models if None)."""
+    lib.lembed_reranker_autotune_clear_cache(
+        model_name.encode("utf-8") if model_name else ffi.NULL
+    )
+
+
+def reranker_auto_config_profile(
+    profile: str = "balanced",
+    model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
+) -> "RerankerTuningResult":
+    """Auto-configure reranker using a profile.
+
+    Args:
+        profile: "fast" (INT8, minimal latency), "balanced" (~300ms), or "quality" (FP32, best ranking)
+        model_name: Model name (ignored for "fast"/"quality" which use optimized defaults)
+
+    Returns:
+        RerankerTuningResult for the profile.
+
+    Example:
+        >>> result = reranker_auto_config_profile("fast")
+        >>> print(f"Config: {result.threads} threads, {result.max_tokens} tokens")
+    """
+    profile_map = {
+        "fast": lib.LEMBED_PROFILE_INTERACTIVE,
+        "interactive": lib.LEMBED_PROFILE_INTERACTIVE,
+        "balanced": lib.LEMBED_PROFILE_BALANCED,
+        "quality": lib.LEMBED_PROFILE_QUALITY,
+    }
+    if profile not in profile_map:
+        raise ValueError(f"Unknown profile '{profile}'. Use: {list(profile_map.keys())}")
+
+    result = ffi.new("lembed_reranker_tuning_result_t *")
+    check_status(lib.lembed_reranker_auto_config_profile(model_name.encode("utf-8"), profile_map[profile], result))
+
+    return RerankerTuningResult(
+        threads=result.threads,
+        batch_size=result.batch_size,
+        max_tokens=result.max_tokens,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        p95_latency_ms=result.p95_latency_ms,
+        memory_mb=result.memory_mb,
+    )
+
+
+def Reranker_auto(
+    profile: str = "balanced",
+    **kwargs,
+) -> "Reranker":
+    """Create a Reranker with automatic configuration based on profile.
+
+    This is the recommended way to create a Reranker — it automatically
+    selects the optimal model and configuration for your hardware.
+
+    Args:
+        profile: "fast" (INT8, minimal latency), "balanced" (~300ms), or "quality" (FP32, best ranking)
+        **kwargs: Additional arguments passed to Reranker constructor
+
+    Returns:
+        Configured Reranker instance.
+
+    Example:
+        >>> # Fast: INT8, minimal latency
+        >>> reranker = Reranker.auto("fast")
+        >>>
+        >>> # Balanced: good quality/speed tradeoff
+        >>> reranker = Reranker.auto("balanced")
+        >>>
+        >>> # Quality: FP32, best ranking
+        >>> reranker = Reranker.auto("quality")
+    """
+    # Select model based on profile
+    model_map = {
+        "fast": "jinaai/jina-reranker-v1-turbo-en-quantized",
+        "balanced": "jinaai/jina-reranker-v1-turbo-en-quantized",
+        "quality": "jinaai/jina-reranker-v1-turbo-en",
+    }
+    model_name = model_map.get(profile, "jinaai/jina-reranker-v1-turbo-en-quantized")
+
+    # Get optimal config
+    config = reranker_auto_config_profile(profile, model_name)
+
+    # Create reranker with optimal config
+    return Reranker(
+        model_name,
+        threads=config.threads,
+        batch_size=config.batch_size,
+        max_length=config.max_tokens,
+        **kwargs,
+    )

@@ -17,7 +17,7 @@ from .models import (
     _desc_from_c,
     _is_local_path,
 )
-from .types import ModelDesc, Stats, TuningResult, ModelSelectionResult
+from .types import ModelDesc, Stats, TuningResult, ModelSelectionResult, UnifiedTuningResult
 from .exceptions import ModelNotFoundError
 
 
@@ -176,6 +176,84 @@ def clear_autotune_cache(model_name: str = None) -> None:
     """
     lib.lembed_autotune_clear_cache(
         model_name.encode("utf-8") if model_name else ffi.NULL
+    )
+
+
+# Task types for unified auto-tuner
+_TASK_EMBEDDING = 0
+_TASK_RERANKING = 1
+_TASK_IMAGE = 2
+_TASK_SPARSE = 3
+
+
+def autotune_unified(
+    task: str = "embedding",
+    model_name: str = None,
+    *,
+    full: bool = False,
+) -> "UnifiedTuningResult":
+    """Unified auto-tune entry point for all task types.
+
+    Args:
+        task: "embedding", "reranking", "image", or "sparse"
+        model_name: Model name (default depends on task)
+        full: If True, run FULL mode (30-120s), else QUICK (5-15s)
+
+    Returns:
+        UnifiedTuningResult with optimal configuration.
+
+    Example:
+        >>> result = autotune_unified("reranking", "jinaai/jina-reranker-v1-turbo-en-quantized")
+        >>> print(f"Config: {result.threads} threads, batch={result.batch_size}")
+    """
+    task_map = {
+        "embedding": _TASK_EMBEDDING,
+        "reranking": _TASK_RERANKING,
+        "image": _TASK_IMAGE,
+        "sparse": _TASK_SPARSE,
+    }
+    if task not in task_map:
+        raise ValueError(f"Unknown task '{task}'. Use: {list(task_map.keys())}")
+
+    if model_name is None:
+        # Default models per task
+        defaults = {
+            "embedding": "BAAI/bge-small-en-v1.5",
+            "reranking": "jinaai/jina-reranker-v1-turbo-en-quantized",
+            "image": None,
+            "sparse": None,
+        }
+        model_name = defaults.get(task)
+        if model_name is None:
+            raise ValueError(f"No default model for task '{task}'. Please specify model_name.")
+
+    mode = lib.LEMBED_AUTOTUNE_FULL if full else lib.LEMBED_AUTOTUNE_QUICK
+    result = ffi.new("lembed_unified_tuning_result_t *")
+
+    # Resolve model name to code for embedding
+    resolved_name = model_name
+    if task == "embedding":
+        from .models import resolve_text_model
+        try:
+            idx = resolve_text_model(model_name)
+            info = ffi.new("lembed_model_info_t *")
+            lib.lembed_get_text_model_info(idx, info)
+            resolved_name = ffi.string(info.model_code).decode("utf-8")
+        except Exception:
+            pass  # Use original name
+
+    check_status(lib.lembed_autotune_unified(task_map[task], resolved_name.encode("utf-8"), mode, result))
+
+    return UnifiedTuningResult(
+        task=task,
+        threads=result.threads,
+        batch_size=result.batch_size,
+        workers=result.workers,
+        max_tokens=result.max_tokens,
+        throughput_docs_sec=result.throughput_docs_sec,
+        latency_ms=result.latency_ms,
+        p95_latency_ms=result.p95_latency_ms,
+        memory_mb=result.memory_mb,
     )
 
 

@@ -26,6 +26,7 @@ lembed_status_t lembed_sparse_text_embedding_embed(
     const char* const* texts,
     int num_texts,
     int batch_size,
+    const lembed_sparse_options_t* sparse_opts,
     lembed_sparse_embeddings_t* result);
 
 /* Introspection */
@@ -204,6 +205,7 @@ lembed_status_t lembed_sparse_text_embedding_embed(
         const char* const* texts,
         int num_texts,
         int batch_size,
+        const lembed_sparse_options_t* sparse_opts,
         lembed_sparse_embeddings_t* result) {
     if (!ctx || !texts || num_texts <= 0 || !result)
         return LEMBED_ERROR_INVALID_ARGUMENT;

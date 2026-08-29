@@ -29,6 +29,7 @@ lembed_status_t lembed_list_reranker_models(const lembed_model_info_t** out, int
 /* Lookup model enum from HuggingFace model code string, returns -1 if not found */
 int lembed_find_text_model_by_code(const char* model_code);
 int lembed_find_sparse_model_by_code(const char* model_code);
+int lembed_find_reranker_model_by_code(const char* model_code);
 
 #ifdef __cplusplus
 }
@@ -294,6 +295,10 @@ static const lembed_model_info_t lembed__reranker_models[] = {
     { "jinaai/jina-reranker-v2-base-multilingual", "jinaai/jina-reranker-v2-base-multilingual",
       "onnx/model.onnx", "Jina reranker v2 base multilingual",
       0, 8192, 0, LEMBED_QUANTIZATION_NONE },
+    /* LEMBED_RERANKER_JINA_V1_TURBO_EN_QUANTIZED */
+    { "jinaai/jina-reranker-v1-turbo-en-quantized", "jinaai/jina-reranker-v1-turbo-en",
+      "onnx/model_quantized.onnx", "Jina reranker v1 turbo English (INT8 quantized)",
+      0, 8192, 0, LEMBED_QUANTIZATION_STATIC },
 };
 
 /* =========================================================================
@@ -393,6 +398,14 @@ int lembed_find_sparse_model_by_code(const char* model_code) {
     if (!model_code) return -1;
     for (int i = 0; i < LEMBED_SPARSE_MODEL_COUNT; i++) {
         if (strcmp(lembed__sparse_models[i].model_code, model_code) == 0) return i;
+    }
+    return -1;
+}
+
+int lembed_find_reranker_model_by_code(const char* model_code) {
+    if (!model_code) return -1;
+    for (int i = 0; i < LEMBED_RERANKER_MODEL_COUNT; i++) {
+        if (strcmp(lembed__reranker_models[i].model_code, model_code) == 0) return i;
     }
     return -1;
 }
