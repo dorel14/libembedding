@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -86,8 +87,10 @@ inline bool mkdirs(const std::string& path) {
 
 /* Check if file exists */
 inline bool file_exists(const std::string& path) {
-    struct stat st;
-    return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
+    std::error_code ec;
+    bool exists = std::filesystem::exists(path, ec);
+    bool regular = std::filesystem::is_regular_file(path, ec);
+    return exists && regular;
 }
 
 /* Read an entire file into a string. Throws std::runtime_error on failure. */

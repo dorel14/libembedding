@@ -263,7 +263,7 @@ void lembed_text_embedding_free(lembed_text_embedding_t* ctx);
 /* Sparse text embedding */
 lembed_status_t lembed_sparse_text_embedding_create(const lembed_sparse_options_t* options, lembed_sparse_embedding_ctx_t** out);
 lembed_status_t lembed_sparse_text_embedding_create_from_path(const char* dir_path, const lembed_sparse_options_t* options, lembed_sparse_embedding_ctx_t** out);
-lembed_status_t lembed_sparse_text_embedding_embed(lembed_sparse_embedding_ctx_t* ctx, const char* const* texts, int num_texts, int batch_size, lembed_sparse_embeddings_t* result);
+lembed_status_t lembed_sparse_text_embedding_embed(lembed_sparse_embedding_ctx_t* ctx, const char* const* texts, int num_texts, int batch_size, const lembed_sparse_options_t* sparse_opts, lembed_sparse_embeddings_t* result);
 const lembed_model_desc_t* lembed_sparse_text_embedding_desc(const lembed_sparse_embedding_ctx_t* ctx);
 const char* lembed_sparse_text_embedding_model_name(const lembed_sparse_embedding_ctx_t* ctx);
 int lembed_sparse_text_embedding_max_length(const lembed_sparse_embedding_ctx_t* ctx);
@@ -402,6 +402,23 @@ lembed_status_t lembed_autotune_unified_config(
     lembed_unified_tuning_result_t* result);
 
 void lembed_autotune_unified_clear_cache(lembed_task_t task, const char* model_name);
+
+/* Sparse Auto-Tuner */
+typedef struct {
+    int top_k;
+    float min_weight;
+    int storage_format;
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+} lembed_sparse_tuning_result_t;
+
+lembed_status_t lembed_sparse_autotune(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_sparse_tuning_result_t* result);
 
 /* Sparse autotune */
 typedef struct {

@@ -156,11 +156,33 @@ typedef struct {
     int batch_size;
     int workers;         /* embedding only */
     int max_tokens;      /* reranker only */
+    int top_k;           /* sparse only */
+    float min_weight;    /* sparse only */
+    int storage_format;  /* sparse only */
     double throughput_docs_sec;
     double latency_ms;
     double p95_latency_ms;
     double memory_mb;
 } lembed_unified_tuning_result_t;
+
+/* Sparse auto-tuner result */
+typedef struct {
+    int top_k;
+    float min_weight;
+    int storage_format;
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+} lembed_sparse_tuning_result_t;
+
+/* Run auto-tuning for sparse embedding
+ * Optimizes top_k x min_weight x storage_format for throughput */
+lembed_status_t lembed_sparse_autotune(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_sparse_tuning_result_t* result);
 
 /* Unified auto-tune entry point
  * Routes to the appropriate implementation based on task type.

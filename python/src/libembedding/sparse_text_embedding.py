@@ -121,7 +121,7 @@ class SparseTextEmbedding:
 
         result = ffi.new("lembed_sparse_embeddings_t *")
         check_status(
-            lib.lembed_sparse_text_embedding_embed(self._ctx, c_texts, n, bs, result)
+            lib.lembed_sparse_text_embedding_embed(self._ctx, c_texts, n, bs, ffi.NULL, result)
         )
 
         try:
