@@ -3,6 +3,8 @@
 
 /* Autotuner C API implementation */
 #include "libembedding/detail/autotuner_impl.hpp"
+#include "libembedding/detail/autotune_bench_text.hpp"
+#include "libembedding/detail/autotune_cache.hpp"
 
 #include <cstdio>
 
@@ -15,7 +17,7 @@ lembed_status_t lembed_autotune(
     int idx = lembed_find_text_model_by_code(model_name);
     if (idx < 0) return LEMBED_ERROR_MODEL_NOT_FOUND;
 
-    return lembed::detail::autotune_impl(
+    return lembed::detail::autotune_text_impl(
         (lembed_text_model_t)idx,
         {},  /* use generated corpus */
         mode,
@@ -40,7 +42,7 @@ lembed_status_t lembed_autotune_custom(
     for (int i = 0; i < n_texts; i++)
         corpus.push_back(texts[i]);
 
-    return lembed::detail::autotune_impl(
+    return lembed::detail::autotune_text_impl(
         (lembed_text_model_t)idx,
         corpus,
         mode,
@@ -76,5 +78,5 @@ lembed_status_t lembed_auto_select_model(
 
 /* Autotune cache management */
 void lembed_autotune_clear_cache(const char* model_name) {
-    lembed::detail::clear_cache(model_name);
+    lembed::detail::clear_autotune_cache(model_name);
 }
