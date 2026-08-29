@@ -72,8 +72,8 @@ lembed_text_embedding_free(embedder);
 
 | Dependency | Required | Notes |
 |---|---|---|
-| **ONNX Runtime** >= 1.16 | Yes | `brew install onnxruntime` or set `ONNXRUNTIME_ROOT` |
-| **libcurl** >= 7.0 | Optional | For model downloading. Disable with `-DLIBEMBEDDING_NO_DOWNLOAD=ON` |
+| **ONNX Runtime** >= 1.16 | Yes | Bundled dans les wheels PyPI et sur Windows. Sur macOS/Linux, copié automatiquement à côté des exécutables au build. |
+| **libcurl** >= 7.0 | Optional | Pour le téléchargement de modèles. Copié automatiquement à côté des exécutables sur toutes les plateformes. Désactivé avec `-DLIBEMBEDDING_NO_DOWNLOAD=ON` |
 | **cJSON** | Bundled | Included in `third_party/` |
 | **stb_image** | Bundled | Included in `third_party/`. Disable with `-DLIBEMBEDDING_NO_IMAGE=ON` |
 | **CMake** >= 3.18 | Build only | |

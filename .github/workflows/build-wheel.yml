@@ -120,11 +120,30 @@ jobs:
           cmake --build . --parallel --target embedding_shared --config Release
 
       # ── Copy shared library into the Python package ──────────────
-      - name: Copy shared library (Linux/macOS)
+      - name: Copy shared libraries (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          if [ "${{ runner.os }}" = "Linux" ]; then ext=".so"; else ext=".dylib"; fi
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            ext=".so"
+            ort_lib_dir="$ONNXRUNTIME_ROOT/lib"
+            curl_lib_dir="/usr/lib/x86_64-linux-gnu"
+          else
+            ext=".dylib"
+            ort_lib_dir="$ONNXRUNTIME_ROOT/lib"
+            if [ "$(uname -m)" = "arm64" ]; then
+              curl_lib_dir="/opt/homebrew/lib"
+            else
+              curl_lib_dir="/usr/local/lib"
+            fi
+          fi
+
           cp "build/libembedding${ext}" python/src/libembedding/
+
+          cp "${ort_lib_dir}/libonnxruntime${ext}" python/src/libembedding/ || true
+          cp "${ort_lib_dir}/libonnxruntime_providers_shared${ext}" python/src/libembedding/ || true
+
+          cp "${curl_lib_dir}/libcurl${ext}" python/src/libembedding/ || true
+
           ls -la python/src/libembedding/
 
       - name: Copy shared library and onnxruntime (Windows)

@@ -240,12 +240,14 @@ if(WIN32)
             list(APPEND _dll_names libembedding.dll)
         endif()
 
-        # Curl DLL (from CURL_LIBRARY or CURL_DIR)
+        # Curl DLL
         if(DEFINED CURL_LIBRARY)
             get_filename_component(_curl_lib_dir "${CURL_LIBRARY}" DIRECTORY)
             if(EXISTS "${_curl_lib_dir}/../bin/libcurl-x64.dll")
                 list(APPEND _dll_dirs "${_curl_lib_dir}/../bin")
                 list(APPEND _dll_names libcurl-x64.dll)
+            elseif(EXISTS "${_curl_lib_dir}/libcurl.dll")
+                list(APPEND _dll_names libcurl.dll)
             endif()
         endif()
 
@@ -259,6 +261,58 @@ if(WIN32)
                     )
                 endif()
             endforeach()
+        endforeach()
+    endfunction()
+endif()
+
+# =========================================================================
+# Helper: copy runtime shared libraries next to executables on Linux/macOS
+# =========================================================================
+if(NOT WIN32)
+    function(copy_runtime_libs target_name)
+        set(_to_copy "")
+
+        # ONNX Runtime
+        if(ONNXRuntime_LIBRARIES)
+            get_filename_component(_ort_lib_dir "${ONNXRuntime_LIBRARIES}" DIRECTORY)
+
+            if(APPLE)
+                set(_soname "libonnxruntime.dylib")
+                set(_provider "libonnxruntime_providers_shared.dylib")
+            else()
+                set(_soname "libonnxruntime.so")
+                set(_provider "libonnxruntime_providers_shared.so")
+            endif()
+
+            if(EXISTS "${ONNXRuntime_LIBRARIES}")
+                list(APPEND _to_copy "${ONNXRuntime_LIBRARIES}")
+            endif()
+            if(EXISTS "${_ort_lib_dir}/${_soname}")
+                list(APPEND _to_copy "${_ort_lib_dir}/${_soname}")
+            endif()
+            if(EXISTS "${_ort_lib_dir}/${_provider}")
+                list(APPEND _to_copy "${_ort_lib_dir}/${_provider}")
+            endif()
+        endif()
+
+        # libcurl (optional, only if download is enabled)
+        if(NOT LIBEMBEDDING_NO_DOWNLOAD)
+            if(CURL_LIBRARIES AND EXISTS "${CURL_LIBRARIES}")
+                get_filename_component(_curl_ext "${CURL_LIBRARIES}" EXT)
+                if(_curl_ext MATCHES "^\\.(so|dylib)$")
+                    list(APPEND _to_copy "${CURL_LIBRARIES}")
+                endif()
+            endif()
+        endif()
+
+        list(REMOVE_DUPLICATES _to_copy)
+
+        foreach(_lib IN LISTS _to_copy)
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${_lib}"
+                    "$<TARGET_FILE_DIR:${target_name}>"
+            )
         endforeach()
     endfunction()
 endif()
@@ -301,6 +355,9 @@ if(LIBEMBEDDING_BUILD_SHARED)
         set_target_properties(embedding_shared PROPERTIES INSTALL_RPATH "@loader_path")
     elseif(UNIX)
         set_target_properties(embedding_shared PROPERTIES INSTALL_RPATH "$ORIGIN")
+    endif()
+    if(NOT WIN32 AND ONNXRuntime_LIBRARIES)
+        copy_runtime_libs(embedding_shared)
     endif()
 endif()
 

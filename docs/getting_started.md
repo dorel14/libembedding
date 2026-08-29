@@ -15,20 +15,29 @@ pip install libembedding-ng
 
 ## Prérequis
 
-libembedding nécessite **ONNX Runtime** sur le système :
+### Python (pip)
+
+Le paquet PyPI inclut **ONNX Runtime** automatiquement. Aucune installation système supplémentaire n'est nécessaire.
+
+### C/C++ (compilation)
+
+libembedding nécessite **ONNX Runtime** et **libcurl** pour la compilation :
 
 ```bash
 # macOS
-brew install onnxruntime
+brew install onnxruntime curl
 
 # Ubuntu / Debian
-sudo apt install libonnxruntime-dev
+sudo apt install libonnxruntime-dev libcurl4-openssl-dev
 
-# Windows (via vcpkg ou téléchargement direct)
-# Définir ONNXRUNTIME_ROOT si nécessaire
+# Windows
+# Les fichiers sont inclus dans le dépôt (third_party/onnxruntime/)
+# libcurl est fourni via vcpkg ou le système
 ```
 
 > **Note :** Si ONNX Runtime n'est pas trouvé automatiquement, définissez la variable d'environnement `ONNXRUNTIME_ROOT` pointant vers votre installation.
+
+Au moment de l'exécution, les bibliothèques partagées d'ONNX Runtime et de libcurl sont copiées automatiquement à côté des exécutables sur **toutes les plateformes** (`.dll` sur Windows, `.dylib` sur macOS, `.so` sur Linux).
 
 ## Vérification de l'installation
 
