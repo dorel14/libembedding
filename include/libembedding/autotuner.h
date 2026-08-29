@@ -209,6 +209,26 @@ lembed_status_t lembed_autotune_unified_config(
 /* Clear unified autotune cache */
 void lembed_autotune_unified_clear_cache(lembed_task_t task, const char* model_name);
 
+/* =========================================================================
+ * Image Auto-Tuner
+ * ========================================================================= */
+
+/* Image tuning result */
+typedef struct {
+    int threads;
+    int batch_size;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+} lembed_image_tuning_result_t;
+
+/* Run auto-tuning for an image embedding model
+ * Optimizes threads × batch_size for throughput */
+lembed_status_t lembed_image_autotune(
+    const char* model_name,
+    lembed_autotune_mode_t mode,
+    lembed_image_tuning_result_t* result);
+
 #ifdef __cplusplus
 }
 #endif

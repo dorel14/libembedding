@@ -238,13 +238,13 @@ lembed_status_t lembed_image_embedding_embed_files(
             int bsz = range.end - range.start;
             int ts = ctx->target_size;
 
-            /* Preprocess images into [N, 3, H, W] tensor */
+            /* Preprocess images directly into batch buffer (zero-copy) */
             std::vector<float> batch_data(bsz * 3 * ts * ts);
             for (int i = 0; i < bsz; i++) {
-                auto img = lembed::detail::load_and_preprocess_image(
-                    file_paths[range.start + i], ts);
-                std::memcpy(batch_data.data() + i * 3 * ts * ts,
-                           img.data.data(), 3 * ts * ts * sizeof(float));
+                lembed::detail::preprocess_image_to_buffer(
+                    file_paths[range.start + i],
+                    batch_data.data() + i * 3 * ts * ts,
+                    ts);
             }
 
             /* Run ONNX with float input */
@@ -311,10 +311,10 @@ lembed_status_t lembed_image_embedding_embed_bytes(
             std::vector<float> batch_data(bsz * 3 * ts * ts);
             for (int i = 0; i < bsz; i++) {
                 int idx = range.start + i;
-                auto img = lembed::detail::load_and_preprocess_image_bytes(
-                    image_data[idx], image_sizes[idx], ts);
-                std::memcpy(batch_data.data() + i * 3 * ts * ts,
-                           img.data.data(), 3 * ts * ts * sizeof(float));
+                lembed::detail::preprocess_image_bytes_to_buffer(
+                    image_data[idx], image_sizes[idx],
+                    batch_data.data() + i * 3 * ts * ts,
+                    ts);
             }
 
             int64_t shape[4] = { bsz, 3, ts, ts };

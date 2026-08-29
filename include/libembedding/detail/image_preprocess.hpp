@@ -80,15 +80,18 @@ inline ImageTensor load_and_preprocess_image(
     result.data.resize(3 * target_size * target_size);
 
     /* Convert to CHW float, rescale [0,255] -> [0,1], normalize */
-    for (int ch = 0; ch < 3; ch++) {
-        for (int y = 0; y < target_size; y++) {
-            for (int x = 0; x < target_size; x++) {
-                int src_x = crop_x + x;
-                int src_y = crop_y + y;
-                float pixel = (float)resized[(src_y * new_w + src_x) * 3 + ch] / 255.0f;
-                pixel = (pixel - mean[ch]) / std_dev[ch];
-                result.data[ch * target_size * target_size + y * target_size + x] = pixel;
-            }
+    /* Optimized loop order: process all channels per pixel for better cache locality */
+    float* out = result.data.data();
+    const unsigned char* src = resized.data();
+    const int stride = target_size * target_size;
+    for (int y = 0; y < target_size; y++) {
+        int src_y = crop_y + y;
+        const unsigned char* src_row = src + (src_y * new_w + crop_x) * 3;
+        for (int x = 0; x < target_size; x++) {
+            const unsigned char* src_px = src_row + x * 3;
+            out[0 * stride + y * target_size + x] = ((float)src_px[0] / 255.0f - mean[0]) / std_dev[0];
+            out[1 * stride + y * target_size + x] = ((float)src_px[1] / 255.0f - mean[1]) / std_dev[1];
+            out[2 * stride + y * target_size + x] = ((float)src_px[2] / 255.0f - mean[2]) / std_dev[2];
         }
     }
 
@@ -139,19 +142,106 @@ inline ImageTensor load_and_preprocess_image_bytes(
     result.width = target_size;
     result.data.resize(3 * target_size * target_size);
 
-    for (int ch = 0; ch < 3; ch++) {
-        for (int y = 0; y < target_size; y++) {
-            for (int x = 0; x < target_size; x++) {
-                int src_x = crop_x + x;
-                int src_y = crop_y + y;
-                float pixel = (float)resized[(src_y * new_w + src_x) * 3 + ch] / 255.0f;
-                pixel = (pixel - mean[ch]) / std_dev[ch];
-                result.data[ch * target_size * target_size + y * target_size + x] = pixel;
-            }
+    /* Optimized loop order: process all channels per pixel for better cache locality */
+    float* out = result.data.data();
+    const unsigned char* src = resized.data();
+    const int stride = target_size * target_size;
+    for (int y = 0; y < target_size; y++) {
+        int src_y = crop_y + y;
+        const unsigned char* src_row = src + (src_y * new_w + crop_x) * 3;
+        for (int x = 0; x < target_size; x++) {
+            const unsigned char* src_px = src_row + x * 3;
+            out[0 * stride + y * target_size + x] = ((float)src_px[0] / 255.0f - mean[0]) / std_dev[0];
+            out[1 * stride + y * target_size + x] = ((float)src_px[1] / 255.0f - mean[1]) / std_dev[1];
+            out[2 * stride + y * target_size + x] = ((float)src_px[2] / 255.0f - mean[2]) / std_dev[2];
         }
     }
 
     return result;
+}
+
+/* Write preprocessed image from file directly into output buffer (zero-copy) */
+inline void preprocess_image_to_buffer(
+        const std::string& path,
+        float* out,
+        int target_size = 224,
+        const float mean[3] = nullptr,
+        const float std_dev[3] = nullptr) {
+
+    static const float default_mean[3] = { 0.485f, 0.456f, 0.406f };
+    static const float default_std[3]  = { 0.229f, 0.224f, 0.225f };
+    if (!mean) mean = default_mean;
+    if (!std_dev) std_dev = default_std;
+
+    int w, h, c;
+    unsigned char* img = stbi_load(path.c_str(), &w, &h, &c, 3);
+    if (!img) throw std::runtime_error("Failed to load image: " + path);
+    c = 3;
+
+    int new_w, new_h;
+    if (w < h) { new_w = target_size; new_h = (int)((float)h / w * target_size); }
+    else { new_h = target_size; new_w = (int)((float)w / h * target_size); }
+
+    std::vector<unsigned char> resized(new_w * new_h * 3);
+    stbir_resize_uint8_linear(img, w, h, 0, resized.data(), new_w, new_h, 0, (stbir_pixel_layout)3);
+    stbi_image_free(img);
+
+    int crop_x = (new_w - target_size) / 2;
+    int crop_y = (new_h - target_size) / 2;
+
+    const unsigned char* src = resized.data();
+    const int stride = target_size * target_size;
+    for (int y = 0; y < target_size; y++) {
+        const unsigned char* src_row = src + ((crop_y + y) * new_w + crop_x) * 3;
+        for (int x = 0; x < target_size; x++) {
+            const unsigned char* src_px = src_row + x * 3;
+            out[0 * stride + y * target_size + x] = ((float)src_px[0] / 255.0f - mean[0]) / std_dev[0];
+            out[1 * stride + y * target_size + x] = ((float)src_px[1] / 255.0f - mean[1]) / std_dev[1];
+            out[2 * stride + y * target_size + x] = ((float)src_px[2] / 255.0f - mean[2]) / std_dev[2];
+        }
+    }
+}
+
+/* Write preprocessed image from memory directly into output buffer (zero-copy) */
+inline void preprocess_image_bytes_to_buffer(
+        const unsigned char* data, int data_size,
+        float* out,
+        int target_size = 224,
+        const float mean[3] = nullptr,
+        const float std_dev[3] = nullptr) {
+
+    static const float default_mean[3] = { 0.485f, 0.456f, 0.406f };
+    static const float default_std[3]  = { 0.229f, 0.224f, 0.225f };
+    if (!mean) mean = default_mean;
+    if (!std_dev) std_dev = default_std;
+
+    int w, h, c;
+    unsigned char* img = stbi_load_from_memory(data, data_size, &w, &h, &c, 3);
+    if (!img) throw std::runtime_error("Failed to decode image from memory");
+    c = 3;
+
+    int new_w, new_h;
+    if (w < h) { new_w = target_size; new_h = (int)((float)h / w * target_size); }
+    else { new_h = target_size; new_w = (int)((float)w / h * target_size); }
+
+    std::vector<unsigned char> resized(new_w * new_h * 3);
+    stbir_resize_uint8_linear(img, w, h, 0, resized.data(), new_w, new_h, 0, (stbir_pixel_layout)3);
+    stbi_image_free(img);
+
+    int crop_x = (new_w - target_size) / 2;
+    int crop_y = (new_h - target_size) / 2;
+
+    const unsigned char* src = resized.data();
+    const int stride = target_size * target_size;
+    for (int y = 0; y < target_size; y++) {
+        const unsigned char* src_row = src + ((crop_y + y) * new_w + crop_x) * 3;
+        for (int x = 0; x < target_size; x++) {
+            const unsigned char* src_px = src_row + x * 3;
+            out[0 * stride + y * target_size + x] = ((float)src_px[0] / 255.0f - mean[0]) / std_dev[0];
+            out[1 * stride + y * target_size + x] = ((float)src_px[1] / 255.0f - mean[1]) / std_dev[1];
+            out[2 * stride + y * target_size + x] = ((float)src_px[2] / 255.0f - mean[2]) / std_dev[2];
+        }
+    }
 }
 
 }} /* namespace lembed::detail */
