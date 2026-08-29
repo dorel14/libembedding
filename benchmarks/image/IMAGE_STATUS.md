@@ -46,16 +46,20 @@
 - [x] Profile preprocessing vs inference
 - [x] Light pipeline optimization (zero-copy, CHW)
 - [x] Benchmark batch 1->32
-- [ ] Quantization benchmark
-- [ ] Quality benchmark (image->image, text->image)
+- [x] Quality benchmark (CLIP > ResNet)
+- [x] Quantization methodology documented
+- [ ] Download & integrate INT8 model
+- [ ] Quantization benchmark (FP32 vs INT8)
 - [ ] Storage/index cost measurement
 - [ ] Auto-tuner
 
-## Batch Results Summary
+## Key Findings
 
-- **CLIP B/32**: batch 32 optimal, 1.41x speedup (69.4 ms/img)
-- **ResNet-50**: batch 16 optimal, 1.03x speedup (50.8 ms/img) — minimal gain
-- **UNICOM B/32**: batch 4 optimal, 1.11x speedup (69.2 ms/img)
+1. **Inference dominates**: ONNX is 3x-500x slower than preprocessing
+2. **Batching is model-dependent**: CLIP benefits (1.41x), ResNet doesn't (1.03x)
+3. **CLIP > ResNet for quality**: NDCG@10 0.745 vs 0.663
+4. **CLIP enables multimodal**: shared text/image space (ResNet can't do this)
+5. **Storage matters**: CLIP 512-dim = 2KB/vector vs ResNet 2048-dim = 8KB/vector
 
 1. Model choice (biggest lever)
 2. Batching (22-27% gain)
