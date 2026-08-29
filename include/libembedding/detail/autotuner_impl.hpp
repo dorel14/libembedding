@@ -690,12 +690,7 @@ lembed_status_t lembed_reranker_autotune(
     lembed_objective_t objective,
     lembed_reranker_tuning_result_t* result)
 {
-    fprintf(stderr, "DEBUG: lembed_reranker_autotune called with model_name=%s, mode=%d, objective=%d\n",
-            model_name ? model_name : "(null)", mode, objective);
-    if (!model_name || !result) {
-        fprintf(stderr, "DEBUG: returning INVALID_ARGUMENT\n");
-        return LEMBED_ERROR_INVALID_ARGUMENT;
-    }
+    if (!model_name || !result) return LEMBED_ERROR_INVALID_ARGUMENT;
 
     try {
         return lembed_reranker_autotune_impl(model_name, mode, objective, result);
@@ -1242,8 +1237,17 @@ lembed_status_t lembed_autotune_unified(
             result->memory_mb = rerank_result.memory_mb;
             return LEMBED_OK;
         }
-        case LEMBED_TASK_IMAGE:
-            return LEMBED_ERROR_UNSUPPORTED;
+        case LEMBED_TASK_IMAGE: {
+            lembed_image_tuning_result_t image_result = {0};
+            lembed_status_t s = lembed_image_autotune(model_name, mode, &image_result);
+            if (s != LEMBED_OK) return s;
+            result->threads = image_result.threads;
+            result->batch_size = image_result.batch_size;
+            result->throughput_docs_sec = image_result.throughput_docs_sec;
+            result->latency_ms = image_result.latency_ms;
+            result->memory_mb = image_result.memory_mb;
+            return LEMBED_OK;
+        }
         case LEMBED_TASK_SPARSE: {
             lembed_sparse_tuning_result_t sparse_result = {0};
             lembed_status_t s = lembed_sparse_autotune(model_name, mode, &sparse_result);
@@ -1292,6 +1296,8 @@ lembed_status_t lembed_autotune_unified_config(
             /* For embedding, use standard autotune (no latency budget concept yet) */
             return lembed_autotune_unified(task, model_name, LEMBED_AUTOTUNE_QUICK, result);
         case LEMBED_TASK_IMAGE:
+            /* For image, use image autotune (no latency budget concept yet) */
+            return lembed_autotune_unified(task, model_name, LEMBED_AUTOTUNE_QUICK, result);
         case LEMBED_TASK_SPARSE:
             return LEMBED_ERROR_UNSUPPORTED;
         default:
