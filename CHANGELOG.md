@@ -1,6 +1,18 @@
 # CHANGELOG
 
 
+## v1.5.1 (2026-09-05)
+
+### Bug Fixes
+
+- Limit cmake parallel build on Linux/macOS and fix Windows encoding
+  ([`dbfad2b`](https://github.com/dorel14/libembedding/commit/dbfad2b2fa794ca753a9419713d4a584ea4eafec))
+
+- Limit cmake --build parallel jobs to 2 on Linux/macOS to avoid OOM when compiling the bundled
+  llama.cpp with all models. - Add encoding=utf-8 to _cdefs_path.read_text() in _binding.py to fix
+  UnicodeDecodeError on Windows where default encoding is cp1252.
+
+
 ## v1.5.0 (2026-09-05)
 
 
