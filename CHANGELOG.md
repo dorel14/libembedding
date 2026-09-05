@@ -1,7 +1,15 @@
 # CHANGELOG
 
 
+## v1.5.4 (2026-09-05)
+
+
 ## v1.5.3 (2026-09-05)
+
+### Bug Fixes
+
+- Remove duplicate lembed_model_selection_t definition in _cdefs.h
+  ([`ec76bcf`](https://github.com/dorel14/libembedding/commit/ec76bcfb876d252b11fdcee770f4e5b890af0fd8))
 
 
 ## v1.5.2 (2026-09-05)
