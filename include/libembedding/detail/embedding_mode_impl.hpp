@@ -13,7 +13,7 @@
 
 #include <cstring>
 #include "../embedding_mode.h"
-#include "model_registry.h"
+#include "../model_registry.h"
 
 namespace lembed { namespace detail {
 
