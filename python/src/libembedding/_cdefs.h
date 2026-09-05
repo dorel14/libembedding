@@ -429,7 +429,6 @@ typedef struct {
     float latency_ms;
     float memory_mb;
     float score;
-} lembed_model_selection_t;
 
 /* Auto-select best model for hardware and use case.
  * use_case: "speed", "quality", or "balanced" (default) */
