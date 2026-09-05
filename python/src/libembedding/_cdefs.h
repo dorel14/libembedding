@@ -261,6 +261,21 @@ typedef struct {
 } lembed_reranker_options_t;
 
 typedef struct {
+    lembed_sparse_model_t       model;
+    lembed_execution_provider_t provider;
+    int                         device_id;
+    const char*                 cache_dir;
+    int                         max_length;
+    int                         num_threads;
+    int                         show_download_progress;
+    int                         batch_size;
+    int                         offline;
+    int                         top_k;        /* max terms to keep (0 = all) */
+    float                       min_weight;   /* pruning threshold */
+    int                         storage_format; /* 0=dict, 1=CSR, 2=numpy */
+} lembed_sparse_options_t;
+
+typedef struct {
     const unsigned char* onnx_data;
     size_t               onnx_data_size;
     const unsigned char* tokenizer_json;
