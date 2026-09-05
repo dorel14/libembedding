@@ -1,7 +1,20 @@
 # CHANGELOG
 
 
+## v1.5.0 (2026-09-05)
+
+
 ## v1.4.0 (2026-09-05)
+
+### Bug Fixes
+
+- Remove tracked CMake build artifacts and update .gitignore
+  ([`054df71`](https://github.com/dorel14/libembedding/commit/054df71cc706c7f7bca9b40db97358d0a66f8e4b))
+
+CMakeCache.txt, CMakeFiles/, and related artifacts were accidentally committed with local Windows
+  paths, breaking cross-platform CI builds.
+
+This removes them from the repository and prevents future inclusion.
 
 ### Chores
 
@@ -14,6 +27,9 @@
   ([`d1cffad`](https://github.com/dorel14/libembedding/commit/d1cffad4ba8a73bec29cbf796bd99f52fe590f41))
 
 ### Features
+
+- Add LlamaRerankerProvider with GGUF auto-routing
+  ([`650cda8`](https://github.com/dorel14/libembedding/commit/650cda851579e214165c6fb49c1a787539ee2b24))
 
 - Integrate llama.cpp v0.3.0 as always-on backend
   ([`daf69ea`](https://github.com/dorel14/libembedding/commit/daf69eaf5af3d5d902457a49655b11b11b24afba))
