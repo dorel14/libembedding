@@ -235,7 +235,7 @@ else()
     )
 
     if(NOT LIBEMBEDDING_NO_IMAGE)
-        target_link_libraries(libembedding INTERFACE stb)
+        target_link_libraries(libembedding INTERFACE libembedding_stb)
     endif()
 
     if(NOT LIBEMBEDDING_NO_DOWNLOAD)
