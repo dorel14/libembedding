@@ -172,9 +172,24 @@ class TextEmbedding:
         return self._dim
 
     @property
+    def batch_size(self) -> int:
+        """Batch size for inference."""
+        return self._batch_size
+
+    @property
     def model_name(self) -> str:
         """Model name or path."""
         return self._model_name
+
+    @property
+    def name(self) -> str:
+        """Model name alias."""
+        return self._model_name
+
+    def info(self) -> ModelDesc:
+        """Get runtime model descriptor."""
+        desc_ptr = lib.lembed_text_embedding_desc(self._ctx)
+        return _desc_from_c(desc_ptr)
 
     @classmethod
     def from_mode(cls, mode: str = "balanced", **kwargs):
@@ -218,7 +233,7 @@ class TextEmbedding:
             self._ctx, c_texts, n, bs, result))
 
         dim = result.dim
-        total = result.count * dim
+        total = result.num_embeddings * dim
         arr = np.frombuffer(ffi.buffer(result.data, total * 4), dtype=np.float32).copy()
         lib.lembed_embeddings_free(result)
         return arr.reshape(n, dim)
@@ -258,8 +273,7 @@ class TextEmbedding:
         return Stats(
             texts_embedded=result.texts_embedded,
             batches_run=result.batches_run,
-            total_latency_ms=result.total_latency_ms,
-            stats_calls=result.stats_calls,
+            avg_latency_ms=result.avg_latency_ms,
         )
 
     def embed_batched(self, texts: list[str], batch_size: int | None = None):
