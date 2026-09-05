@@ -1,6 +1,7 @@
 # Build
 build/
 cmake-build-*/
+build2/
 
 # IDE
 .vscode/
@@ -20,8 +21,10 @@ cmake-build-*/
 *.dll
 *.lib
 *.pdb
+*.tlog
 
 # Model cache
+*.gguf
 libembedding_cache/
 .fastembed_cache/
 
@@ -40,3 +43,4 @@ python/build/
 
 # Example venvs
 examples/python/.venv/
+

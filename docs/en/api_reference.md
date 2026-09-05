@@ -34,7 +34,7 @@ TextEmbedding(
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `model_name` | `str` | `"BAAI/bge-small-en-v1.5"` | HuggingFace model name, ONNX repo code, or local directory path containing `model.onnx` + `tokenizer.json` |
-| `provider` | `str` | `"cpu"` | Execution provider: `"cpu"`, `"cuda"`, `"coreml"`, `"directml"`, `"tensorrt"` |
+| `provider` | `str` | `"cpu"` | Execution provider: `"cpu"`, `"cuda"`, `"coreml"`, `"directml"`, `"tensorrt"`, `"llamacpp"` |
 | `device_id` | `int` | `0` | Device index for GPU providers |
 | `cache_dir` | `str \| None` | `None` | Model cache directory (`None` = `~/.cache/libembedding`) |
 | `max_length` | `int` | `0` | Max token length (`0` = model default) |
@@ -48,6 +48,8 @@ TextEmbedding(
 | `autotune` | `bool` | `False` | `True` = auto-tune `threads` and `batch_size` for best performance. See [performance_tuning.html](performance_tuning.html) |
 | `autotune_texts` | `list[str] \| None` | `None` | Custom corpus for autotune (more accurate than synthetic corpus) |
 | `autotune_max_samples` | `int` | `100` | Maximum texts to sample from corpus for autotune |
+| `auto_workers` | `bool` | `False` | `True` = auto-detect optimal sessions/workers for llama.cpp backend |
+| `cache_size` | `int` | `0` | LRU embedding cache size (`0` = disabled) |
 
 #### Methods and properties
 
@@ -62,6 +64,9 @@ TextEmbedding(
 | `list_supported_models()` | `list[ModelInfo]` | (static) List all supported text models |
 | `__enter__()` | `self` | Context manager support |
 | `__exit__()` | `None` | Calls `close()` automatically |
+| `from_gguf(repo, filename=None, provider="llamacpp", ...)` | `TextEmbedding` | Load a GGUF model from HuggingFace (requires llama.cpp backend) |
+| `from_mode(mode="balanced", **kwargs)` | `TextEmbedding` | (classmethod) Create TextEmbedding from preset mode: `"fast"`, `"balanced"`, `"quality"` |
+| `supports_llamacpp()` | `bool` | (static) Check if llama.cpp backend is compiled in |
 
 #### Example
 
@@ -211,7 +216,8 @@ Reranker(
 | `BAAI/bge-reranker-base` | BGE Reranker base (default) |
 | `BAAI/bge-reranker-v2-m3` | Multilingual BGE Reranker v2 |
 | `jinaai/jina-reranker-v1-turbo-en` | Jina Reranker v1 turbo English |
-| `jinaai/jina-reranker-v2-base-multilingual` | Jina Reranker v2 multilingual |
+ | `jinaai/jina-reranker-v2-base-multilingual` | Jina Reranker v2 multilingual |
+| `jinaai/jina-reranker-v1-turbo-en` (quantized) | Jina Reranker v1 turbo English (INT8) |
 
 #### Methods and properties
 
@@ -312,8 +318,104 @@ class ModelSelectionResult:
 | Function | Description |
 |----------|-------------|
 | `autotune(model_name, full=False)` | Auto-tune a model. Returns `TuningResult`. |
+| `autotune_unified(task, model_name, mode="quick")` | Unified auto-tune for any task type. See [Unified Tuning](#unified-tuning). |
+| `sparse_autotune(model_name, mode="quick")` | Auto-tune sparse embedding. Returns `SparseTuningResult`. |
+| `image_autotune(model_name, mode="quick")` | Auto-tune image embedding. Returns `ImageTuningResult`. |
+| `reranker_autotune(model_name, mode="quick", objective="latency")` | Auto-tune reranker. Returns `RerankerTuningResult`. |
+| `reranker_auto_config(model_name, target_latency_ms=500, objective="latency")` | Auto-config reranker for a latency budget. |
+| `reranker_auto_config_profile(model_name, profile="balanced")` | Auto-config reranker using a profile. |
+| `reranker_autotune_constrained(model_name, mode="quick", objective="latency", min_tokens=32, max_latency_ms=1000)` | Auto-tune with constraints. |
+| `clear_reranker_autotune_cache(model_name=None)` | Clear reranker autotune cache. |
 | `auto_select_model(use_case="balanced")` | Select best model. Returns `ModelSelectionResult`. |
 | `clear_autotune_cache(model_name=None)` | Clear autotune cache. |
+| `cache_path()` | Get autotune cache file path. |
+
+---
+
+### Unified Tuning
+
+The unified auto-tuner provides a single API for optimizing all task types (text embedding, sparse, image, reranking).
+
+```python
+from libembedding import (
+    autotune_unified,
+    LEMBED_TASK_EMBEDDING,
+    LEMBED_TASK_SPARSE,
+    LEMBED_TASK_IMAGE,
+    LEMBED_TASK_RERANKING,
+    LEMBED_AUTOTUNE_QUICK,
+    LEMBED_AUTOTUNE_FULL,
+    UnifiedTuningResult,
+)
+
+# Tune any task type
+result = autotune_unified(
+    task=LEMBED_TASK_RERANKING,
+    model_name="BAAI/bge-reranker-base",
+    mode=LEMBED_AUTOTUNE_QUICK,
+)
+print(result.threads, result.batch_size, result.max_tokens)
+```
+
+#### UnifiedTuningResult
+
+```python
+@dataclass(frozen=True)
+class UnifiedTuningResult:
+    task: str               # "embedding", "reranking", "image", or "sparse"
+    threads: int
+    batch_size: int
+    workers: int            # embedding only
+    max_tokens: int         # reranker only
+    top_k: int              # sparse only
+    min_weight: float       # sparse only
+    storage_format: int    # sparse only
+    throughput_docs_sec: float
+    latency_ms: float
+    p95_latency_ms: float
+    memory_mb: float
+```
+
+### SparseTuningResult
+
+```python
+@dataclass(frozen=True)
+class SparseTuningResult:
+    top_k: int
+    min_weight: float
+    storage_format: int
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+```
+
+### ImageTuningResult
+
+```python
+@dataclass(frozen=True)
+class ImageTuningResult:
+    threads: int
+    batch_size: int
+    throughput_docs_sec: float
+    latency_ms: float
+    memory_mb: float
+```
+
+### RerankerTuningResult
+
+```python
+@dataclass(frozen=True)
+class RerankerTuningResult:
+    threads: int
+    batch_size: int
+    max_tokens: int
+    throughput_docs_sec: float
+    latency_ms: float
+    p95_latency_ms: float
+    memory_mb: float
+```
 
 ---
 
@@ -369,7 +471,7 @@ class ModelDesc:
 
 ## Error handling
 
-All exceptions inherit from `LembedError`:
+All exceptions inherit from `LembedError`. The `LlamaError` subclass is raised for llama.cpp/GGUF backend failures:
 
 ```python
 from libembedding import LembedError
@@ -383,6 +485,7 @@ from libembedding.exceptions import (
     ModelNotFoundError,
     UnsupportedError,
     BatchSizeError,
+    LlamaError,
 )
 ```
 
@@ -398,8 +501,14 @@ LembedError (Exception)
 ├── IOError                — file I/O error
 ├── ModelNotFoundError     — unknown model
 ├── UnsupportedError       — feature disabled at compile time
-└── BatchSizeError         — incompatible batch size
+├── BatchSizeError         — incompatible batch size
+└── LlamaError             — llama.cpp/GGUF backend error
 ```
+
+`LlamaError` provides:
+- `status_code` (`int`) — `LEMBED_ERROR_LLAMA`
+- `message` (`str`) — `"llama.cpp backend error"`
+- `detail` (`str`) — technical detail from llama.cpp
 
 #### Example
 

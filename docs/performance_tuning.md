@@ -5,15 +5,16 @@ nav_order: 5
 
 # Performance Tuning
 
-Ce guide couvre les fonctionnalités avancées de performance de libembedding : pool de sessions, auto-tuning, et sélection automatique de modèle.
+Ce guide couvre les fonctionnalités avancées de performance de libembedding : pool de sessions, auto-tuning, sélection automatique de modèle, bucketing, cache LRU, et modes FAST/BALANCED/QUALITY.
 
 ## Sommaire
 
 1. [Pool de sessions (EmbeddingPool)](#pool-de-sessions-embeddingpool)
 2. [Auto-Tuning](#auto-tuning)
 3. [Sélection automatique de modèle](#sélection-automatique-de-modèle)
-4. [Benchmarks](#benchmarks)
-5. [Bonnes pratiques](#bonnes-pratiques)
+4. [Performance llama.cpp / GGUF](#performance-llamacpp--gguf)
+5. [Benchmarks](#benchmarks)
+6. [Bonnes pratiques](#bonnes-pratiques)
 
 ---
 
@@ -99,7 +100,7 @@ pool = TextEmbeddingPool(
 Les résultats sont mis en cache par machine + modèle :
 
 ```
-%LOCALAPPDATA%\libembedding\autotune\8x4_Intel_i7-1065G7_model_ort1.29_v0.2.json
+    %LOCALAPPDATA%\libembedding\autotune\8x4_Intel_i7-1065G7_model_ort1.29_v1.4.0.json
 ```
 
 | Événement | Comportement |
@@ -140,6 +141,42 @@ pool = TextEmbeddingPool(
 )
 ```
 
+### Auto-tune unifié (API unifiée)
+
+L'auto-tune unifié fournit un point d'entrée unique pour tous les types de tâches :
+
+```python
+from libembedding import (
+    autotune_unified,
+    LEMBED_TASK_RERANKING,
+    LEMBED_AUTOTUNE_QUICK,
+)
+
+result = autotune_unified(
+    task=LEMBED_TASK_RERANKING,
+    model_name="BAAI/bge-reranker-base",
+    mode=LEMBED_AUTOTUNE_QUICK,
+)
+# result: UnifiedTuningResult
+```
+
+### Benchmark llama.cpp / GGUF
+
+Avec le backend llama.cpp, comparez ONNX et GGUF :
+
+```python
+from libembedding import Benchmark, CorpusType, Objective
+
+bench = Benchmark()
+comparison = bench.compare_all(
+    onnx_path="/path/to/model.onnx",
+    gguf_path="/path/to/model.Q4_K_M.gguf",
+    corpus=CorpusType.MIXED,
+    objective=Objective.BALANCED,
+)
+print(comparison.recommendation.backend)
+```
+
 ---
 
 ## Sélection automatique de modèle
@@ -176,6 +213,70 @@ pool = TextEmbeddingPool(
 
 ---
 
+## Performance llama.cpp / GGUF
+
+Pour le backend llama.cpp sur CPU, la configuration optimale diffère de ONNX :
+
+### Recommandations
+
+| Paramètre | Valeur recommandée | Raison |
+|-----------|---------------------|--------|
+| `threads` | **1** par session | Évite la contention sur les petits modèles BERT |
+| `workers` / `sessions` | **physical_cores × 2** (max 8) | Scaling quasi-linéaire jusqu'à saturation |
+| `batch_size` | 8-32 | Selon la longueur moyenne des textes |
+| `batch_strategy` | `LENGTH_BUCKET` | Réduit le padding pour des corpus hétérogènes |
+
+### Auto-tuning workers
+
+```python
+from libembedding import TextEmbedding
+
+# Détection automatique du nombre optimal de sessions
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5-GGUF",
+    auto_workers=True,
+    cache_size=4096,
+)
+```
+
+### Modes prédéfinis
+
+```python
+# FAST : priorité vitesse
+model = TextEmbedding.from_mode("fast")
+
+# BALANCED : compromis vitesse/qualité (défaut)
+model = TextEmbedding.from_mode("balanced")
+
+# QUALITY : priorité qualité
+model = TextEmbedding.from_mode("quality")
+```
+
+### Cache LRU
+
+```python
+# Active un cache LRU de 4096 entrées
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5-GGUF",
+    cache_size=4096,
+)
+```
+
+### Baseline i7-1065G7 (MiniLM-L6-v2 Q4_K_M)
+
+| Sessions | Threads | Docs/s |
+|----------|---------|--------|
+| 1 | 1 | 41.8 |
+| 1 | 4 | 72.1 |
+| 4 | 1 | 105.9 |
+| **6** | **1** | **125.9** |
+| 8 | 1 | 129.4 |
+| 6 | 2 | 87.6 |
+
+**Conclusion** : au-delà de 2 sessions, `threads=1` est systématiquement plus rapide. Le multithreading intra-session dégrade les performances sur les embeddings BERT.
+
+---
+
 ## Benchmarks
 
 ### Configuration testée
@@ -183,8 +284,9 @@ pool = TextEmbeddingPool(
 - CPU : Intel i7-1065G7 (4c/8t)
 - OS : Windows 11
 - Modèle : all-MiniLM-L6-v2 (384-dim)
+- Backend : ONNX Runtime et llama.cpp (GGUF Q4_K_M)
 
-### Impact de la longueur des textes
+### Impact de la longueur des textes (ONNX)
 
 | Tokens/texte | Docs/s (8 workers) | ms/texte |
 |--------------|---------------------|----------|
@@ -195,15 +297,25 @@ pool = TextEmbeddingPool(
 
 > **Note** : Le throughput est fortement dépendant de la longueur des textes. Les benchmarks avec textes courts ne prédisent pas les performances avec textes longs.
 
-### Comparaison des configurations
+### Comparaison ONNX vs llama.cpp
 
-| Configuration | Docs/s | CPU% | Efficacité |
-|---------------|--------|------|------------|
-| 1×4 (intra-op) | 52 | 99% | Faible |
-| 4×1 | 102 | 75% | Bonne |
-| **8×1** | **128** | **99%** | **Optimale** |
+| Backend | Config | Docs/s | RAM |
+|---------|--------|--------|-----|
+| ONNX | 8 workers × 1 thread | ~128 | ~500 MB |
+| llama.cpp GGUF Q4_K_M | 6 sessions × 1 thread | ~126 | ~20 MB |
 
-**Conclusion** : Le parallélisme inter-sessions (8×1) est ~2.5x plus efficace que le parallélisme intra-session (1×4) pour les petits Transformers sur CPU.
+### Comparaison des configurations llama.cpp
+
+| Sessions | Threads | Docs/s | Efficacité |
+|----------|---------|--------|------------|
+| 1 | 1 | 41.8 | Basse |
+| 1 | 4 | 72.1 | Moyenne |
+| 4 | 1 | 105.9 | Bonne |
+| **6** | **1** | **125.9** | **Optimale** |
+| 8 | 1 | 129.4 | Saturation |
+| 6 | 2 | 87.6 | Dégradée |
+
+**Conclusion** : Le parallélisme inter-sessions (6×1) est optimal sur cette machine. Au-delà de 2 sessions, le multithreading intra-session dégrade les performances.
 
 ### Comparaison des modèles
 

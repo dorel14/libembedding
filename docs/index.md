@@ -5,10 +5,10 @@ nav_order: 1
 
 # Documentation libembedding
 
-Bienvenue dans la documentation de **libembedding**, une bibliothèque d'embeddings rapide avec APIs **C/C++** et **Python** basée sur ONNX Runtime.
+Bienvenue dans la documentation de **libembedding**, une bibliothèque d'embeddings rapide avec APIs **C/C++** et **Python** basée sur ONNX Runtime et llama.cpp.
 
 > **Projet dérivé de [pacifio/libembedding](https://github.com/pacifio/libembedding).**
-> Cette fourche ajoute le support Windows (DLL native), l'empaquetage PyPI sous le nom `libembedding-ng`, le chargement de modèles locaux, l'introspection à l'exécution, les fonctions de similarité, le streaming, le pool multi-workers, l'auto-tuning et la sélection automatique de modèle.
+> Cette fourche ajoute le support Windows (DLL native), l'empaquetage PyPI sous le nom `libembedding-ng`, le chargement de modèles locaux, l'introspection à l'exécution, les fonctions de similarité, le streaming, le pool multi-workers, l'auto-tuning et la sélection automatique de modèle, le support du backend llama.cpp/GGUF, le bucketing, le cache LRU, le scheduler dynamique et les modes FAST/BALANCED/QUALITY.
 
 ## Structure de la documentation
 
@@ -17,8 +17,8 @@ Bienvenue dans la documentation de **libembedding**, une bibliothèque d'embeddi
 | **Démarrage** | [getting_started.html](getting_started.html) | Installation, prérequis et premiers pas |
 | **API Python** | [api_reference.html](api_reference.html) | Référence complète des classes Python |
 | **Modèles** | [models.html](models.html) | Catalogue des modèles disponibles (texte, image, sparse, reranker) |
-| **Performance** | [performance_tuning.html](performance_tuning.html) | Pool de sessions, auto-tuning, sélection automatique de modèle |
-| **Usage avancé** | [advanced_usage.html](advanced_usage.html) | Modèles locaux, providers, cache, mode hors-ligne, context managers |
+| **Performance** | [performance_tuning.html](performance_tuning.html) | Workers, threads, bucketing, cache, modes, baseline |
+| **Usage avancé** | [advanced_usage.html](advanced_usage.html) | Scheduler, cache LRU, modes FAST/BALANCED/QUALITY, modèles GGUF/llama.cpp |
 | **Exceptions** | [api_reference.html#gestion-des-erreurs](api_reference.html#gestion-des-erreurs) | Hiérarchie des exceptions Python |
 | **English** | [en/](en/index.html) | English documentation |
 
@@ -32,6 +32,9 @@ import numpy as np
 model = TextEmbedding("BAAI/bge-small-en-v1.5")
 embeddings = model.embed(["Hello world", "How are you?"])
 print(embeddings.shape)  # (2, 384)
+
+# Mode prédéfini (FAST / BALANCED / QUALITY)
+model = TextEmbedding.from_mode("balanced")
 
 # Sparse embeddings
 sparse = SparseTextEmbedding()

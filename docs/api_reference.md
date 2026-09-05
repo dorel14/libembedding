@@ -35,7 +35,7 @@ TextEmbedding(
 | Paramètre | Type | Défaut | Description |
 |-----------|------|---------|-------------|
 | `model_name` | `str` | `"BAAI/bge-small-en-v1.5"` | Nom HuggingFace, code de repo, ou chemin local vers un répertoire contenant `model.onnx` + `tokenizer.json` |
-| `provider` | `str` | `"cpu"` | Provider d'exécution : `"cpu"`, `"cuda"`, `"coreml"`, `"directml"`, `"tensorrt"` |
+| `provider` | `str` | `"cpu"` | Provider d'exécution : `"cpu"`, `"cuda"`, `"coreml"`, `"directml"`, `"tensorrt"`, `"llamacpp"` |
 | `device_id` | `int` | `0` | Index du device pour les providers GPU |
 | `cache_dir` | `str \| None` | `None` | Répertoire de cache des modèles (`None` = `~/.cache/libembedding`) |
 | `max_length` | `int` | `0` | Longueur max en tokens (`0` = défaut du modèle) |
@@ -49,6 +49,8 @@ TextEmbedding(
 | `autotune` | `bool` | `False` | `True` = auto-tune `threads` et `batch_size` pour meilleures performances. Voir [performance_tuning.html](performance_tuning.html) |
 | `autotune_texts` | `list[str] \| None` | `None` | Corpus personnalisé pour l'autotune (plus précis que corpus synthétique) |
 | `autotune_max_samples` | `int` | `100` | Nombre max de textes échantillonnés pour l'autotune (si `autotune_texts` fourni) |
+| `auto_workers` | `bool` | `False` | `True` = auto-détection du nombre optimal de sessions/workers pour llama.cpp |
+| `cache_size` | `int` | `0` | Taille du cache LRU d'embeddings (`0` = désactivé) |
 
 #### Méthodes et propriétés
 
@@ -65,6 +67,9 @@ TextEmbedding(
 | `list_supported_models()` | `list[ModelInfo]` | (static) Liste tous les modèles de texte supportés |
 | `__enter__()` | `self` | Support du context manager |
 | `__exit__()` | `None` | Appelle `close()` automatiquement |
+| `from_gguf(repo, filename=None, provider="llamacpp", ...)` | `TextEmbedding` | Charge un modèle GGUF depuis HuggingFace (nécessite le backend llama.cpp) |
+| `from_mode(mode="balanced", **kwargs)` | `TextEmbedding` | (classmethod) Crée un TextEmbedding depuis un mode prédéfini : `"fast"`, `"balanced"`, `"quality"` |
+| `supports_llamacpp()` | `bool` | (static) Vérifie si le backend llama.cpp est compilé |
 
 #### Exemple
 
@@ -214,7 +219,8 @@ Reranker(
 | `BAAI/bge-reranker-base` | BGE Reranker base (défaut) |
 | `BAAI/bge-reranker-v2-m3` | BGE Reranker v2 multilingue |
 | `jinaai/jina-reranker-v1-turbo-en` | Jina Reranker v1 turbo |
-| `jinaai/jina-reranker-v2-base-multilingual` | Jina Reranker v2 multilingue |
+ | `jinaai/jina-reranker-v2-base-multilingual` | Jina Reranker v2 multilingue |
+| `jinaai/jina-reranker-v1-turbo-en` (quantized) | Jina Reranker v1 turbo English (INT8) |
 
 #### Méthodes et propriétés
 
@@ -316,8 +322,67 @@ class ModelSelectionResult:
 | Fonction | Description |
 |----------|-------------|
 | `autotune(model_name, full=False)` | Auto-tune un modèle. Retourne `TuningResult`. |
+| `autotune_unified(task, model_name, mode="quick")` | Auto-tune unifié pour tous les types de tâches. Voir [Unified Tuning](#unified-tuning). |
+| `sparse_autotune(model_name, mode="quick")` | Auto-tune l'embedding sparse. Retourne `SparseTuningResult`. |
+| `image_autotune(model_name, mode="quick")` | Auto-tune l'embedding image. Retourne `ImageTuningResult`. |
+| `reranker_autotune(model_name, mode="quick", objective="latency")` | Auto-tune le reranker. Retourne `RerankerTuningResult`. |
+| `reranker_auto_config(model_name, target_latency_ms=500, objective="latency")` | Configuration automatique du reranker pour un budget de latence. |
+| `reranker_auto_config_profile(model_name, profile="balanced")` | Configuration du reranker via un profil. |
+| `reranker_autotune_constrained(model_name, mode="quick", objective="latency", min_tokens=32, max_latency_ms=1000)` | Auto-tune avec contraintes. |
+| `clear_reranker_autotune_cache(model_name=None)` | Efface le cache d'autotune du reranker. |
 | `auto_select_model(use_case="balanced")` | Sélectionne le meilleur modèle. Retourne `ModelSelectionResult`. |
 | `clear_autotune_cache(model_name=None)` | Efface le cache d'autotune. |
+| `cache_path()` | Chemin du fichier de cache d'autotune. |
+
+---
+
+### Unified Tuning
+
+L'auto-tune unifié fournit un point d'entrée unique pour tous les types de tâches (texte, sparse, image, reranking).
+
+```python
+from libembedding import autotune_unified, LEMBED_TASK_RERANKING, LEMBED_AUTOTUNE_QUICK
+
+result = autotune_unified(
+    task=LEMBED_TASK_RERANKING,
+    model_name="BAAI/bge-reranker-base",
+    mode=LEMBED_AUTOTUNE_QUICK,
+)
+```
+
+#### UnifiedTuningResult
+
+```python
+@dataclass(frozen=True)
+class UnifiedTuningResult:
+    task: str
+    threads: int
+    batch_size: int
+    workers: int
+    max_tokens: int
+    top_k: int
+    min_weight: float
+    storage_format: int
+    throughput_docs_sec: float
+    latency_ms: float
+    p95_latency_ms: float
+    memory_mb: float
+```
+
+---
+
+### LlamaError
+
+Exception levée pour les erreurs du backend llama.cpp/GGUF :
+
+```python
+from libembedding import LlamaError
+
+try:
+    model = TextEmbedding.from_gguf("/path/to/model.gguf")
+except LlamaError as e:
+    print(f"Erreur llama.cpp: {e.detail}")
+```
 
 ---
 
@@ -387,6 +452,7 @@ from libembedding.exceptions import (
     ModelNotFoundError,
     UnsupportedError,
     BatchSizeError,
+    LlamaError,
 )
 ```
 
@@ -402,7 +468,8 @@ LembedError (Exception)
 ├── IOError                — erreur fichier
 ├── ModelNotFoundError     — modèle inconnu
 ├── UnsupportedError       — fonctionnalité désactivée à la compilation
-└── BatchSizeError         — taille de batch incompatible
+├── BatchSizeError         — taille de batch incompatible
+└── LlamaError             — erreur du backend llama.cpp/GGUF
 ```
 
 #### Exemple de gestion
@@ -438,4 +505,51 @@ libembedding.list_text_models()      # list[ModelInfo]
 libembedding.list_sparse_models()    # list[ModelInfo]
 libembedding.list_image_models()     # list[ModelInfo]
 libembedding.list_reranker_models()  # list[ModelInfo]
+```
+
+### Auto-tuning workers (C API)
+
+```c
+#include <libembedding/worker_autotune.h>
+
+lembed_worker_config_t cfg = lembed_detect_optimal_workers();
+printf("Physical cores: %d\n", cfg.physical_cores);
+printf("Optimal workers: %d\n", cfg.optimal_workers);
+printf("Optimal threads: %d\n", cfg.optimal_threads);
+
+int workers = lembed_recommended_workers_for_model("/path/to/model.gguf");
+```
+
+### Embedding modes (C API)
+
+```c
+#include <libembedding/embedding_mode.h>
+
+lembed_embedding_mode_t mode = LEMBED_MODE_BALANCED;
+lembed_text_model_t model = lembed_recommended_model_for_mode(mode);
+const char* mode_str = lembed_mode_to_string(mode);  // "balanced"
+```
+
+### Embedding cache (C API)
+
+```c
+#include <libembedding/embedding_cache.h>
+
+lembed_cache_config_t cfg = lembed_cache_config_default();
+cfg.capacity = 4096;
+cfg.ttl_seconds = 3600;  // 1 heure
+
+lembed_cache_t* cache = lembed_cache_create(&cfg);
+float* vec = NULL;
+int dim = 0;
+if (lembed_cache_get(cache, "Hello world", &vec, &dim)) {
+    // cache hit
+} else {
+    // cache miss : calculer l'embedding puis stocker
+    float embedding[384];
+    // ... calcul ...
+    lembed_cache_put(cache, "Hello world", embedding, 384);
+}
+
+lembed_cache_free(cache);
 ```

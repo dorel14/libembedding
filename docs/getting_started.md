@@ -39,6 +39,27 @@ sudo apt install libonnxruntime-dev libcurl4-openssl-dev
 
 Au moment de l'exécution, les bibliothèques partagées d'ONNX Runtime et de libcurl sont copiées automatiquement à côté des exécutables sur **toutes les plateformes** (`.dll` sur Windows, `.dylib` sur macOS, `.so` sur Linux).
 
+### Backend llama.cpp
+
+Le backend llama.cpp est activé par défaut et permet de charger les modèles GGUF :
+
+```bash
+cmake .. -DLIBEMBEDDING_BUILD_SHARED=ON
+cmake --build . --parallel
+```
+
+Vérifiez la disponibilité à l'exécution :
+
+```python
+from libembedding import TextEmbedding
+
+# Auto-détection par extension de fichier
+model = TextEmbedding("Xenova/all-MiniLM-L6-v2-GGUF/all-MiniLM-L6-v2-Q4_K_M.gguf")
+
+# Ou depuis un chemin local
+model = TextEmbedding("/path/to/model.gguf")
+```
+
 ## Vérification de l'installation
 
 ```python
@@ -70,6 +91,36 @@ print(embeddings.dtype)   # float32
 
 # Similarité cosinus
 similarity = np.dot(embeddings[0], embeddings[1])  # ≈ 0.82
+```
+
+### Modes prédéfinis FAST / BALANCED / QUALITY
+
+```python
+from libembedding import TextEmbedding
+
+# FAST : MiniLM-L12-v2 quantifié (vitesse maximale)
+model = TextEmbedding.from_mode("fast")
+
+# BALANCED : BGE-small (compromis vitesse/qualité)
+model = TextEmbedding.from_mode("balanced")
+
+# QUALITY : BGE-base (meilleure qualité)
+model = TextEmbedding.from_mode("quality")
+```
+
+### llama.cpp avec auto-tuning
+
+```python
+from libembedding import TextEmbedding
+
+# Auto-détection du nombre optimal de sessions/workers
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5-GGUF",
+    auto_workers=True,      # détecte automatiquement le nombre de sessions
+    cache_size=4096,        # cache LRU optionnel
+)
+
+embeddings = model.embed(["Hello world", "How are you?"])
 ```
 
 ### Sparse embeddings

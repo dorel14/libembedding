@@ -131,11 +131,44 @@ for m in libembedding.list_text_models():
 | `microsoft/resnet-50` | 2048 | ResNet-50 |
 | `open-metric-learning/unicom-vit-b-16` | 768 | Unicom ViT-B/16 |
 | `open-metric-learning/unicom-vit-b-32` | 512 | Unicom ViT-B/32 |
-| `nomic-ai/nomic-embed-vision-v1.5` | 768 | Nomic embed vision v1.5 |
+ | `nomic-ai/nomic-embed-vision-v1.5` | 768 | Nomic embed vision v1.5 |
+| `Xenova/clip-vit-base-patch32` | 512 | CLIP ViT-B/32 INT8 quantized |
 
 ---
 
-## Sparse models (2 models)
+## GGUF models (llama.cpp backend)
+
+GGUF models are loaded by file path (not by enum). They use the llama.cpp backend.
+
+| Model name | Dim | Quantization | Description |
+|---|---|---|---|
+| `all-MiniLM-L6-v2` | 384 | Q4_K_M | MiniLM L6, ~4-bit |
+| `all-MiniLM-L12-v2` | 384 | Q4_K_M | MiniLM L12, ~4-bit |
+| `bge-small-en-v1.5` | 384 | Q4_K_M | BGE small, ~4-bit |
+| `bge-base-en-v1.5` | 768 | Q4_K_M | BGE base, ~4-bit |
+| `bge-large-en-v1.5` | 1024 | Q4_K_M | BGE large, ~4-bit |
+| `snowflake-arctic-embed-xs` | 384 | Q4_K_M | Snowflake XS, ~4-bit |
+
+Browse the full registry at runtime:
+
+```python
+import libembedding
+# Note: GGUF models are listed via lembed_list_gguf_models() in C
+```
+
+```c
+#include <libembedding/gguf_registry.h>
+
+const lembed_gguf_model_info_t* models;
+int count;
+lembed_list_gguf_models(&models, &count);
+for (int i = 0; i < count; i++) {
+    printf("%-24s dim=%-4d quality=%.3f\n",
+           models[i]->name, models[i]->dim, models[i]->quality_mteb);
+}
+```
+
+---
 
 | HuggingFace name | Dim | Max tokens | Description |
 |------------------|-----|-----------|-------------|
@@ -146,7 +179,7 @@ for m in libembedding.list_text_models():
 
 ---
 
-## Reranker models (4 models)
+## Reranker models (5 models)
 
 | HuggingFace name | Max tokens | Description |
 |------------------|-----------|-------------|
@@ -154,6 +187,7 @@ for m in libembedding.list_text_models():
 | `BAAI/bge-reranker-v2-m3` | 512 | Multilingual BGE Reranker v2 |
 | `jinaai/jina-reranker-v1-turbo-en` | 8192 | Jina Reranker v1 turbo English |
 | `jinaai/jina-reranker-v2-base-multilingual` | 8192 | Jina Reranker v2 multilingual |
+| `jinaai/jina-reranker-v1-turbo-en` (quantized) | 8192 | Jina Reranker v1 turbo (INT8) |
 
 ---
 

@@ -70,8 +70,63 @@ model = TextEmbedding("BAAI/bge-small-en-v1.5", provider="tensorrt")
 | `coreml` | CoreML | macOS, iOS |
 | `directml` | DirectML | Windows |
 | `tensorrt` | TensorRT | NVIDIA GPU |
+| `llamacpp` | llama.cpp | Toutes |
 
-## Gestion du cache
+### Modèles GGUF (llama.cpp)
+
+Chargez des modèles `.gguf` quantifiés via le backend llama.cpp :
+
+```python
+from libembedding import TextEmbedding
+
+# Charger un modèle GGUF depuis HuggingFace
+model = TextEmbedding(
+    "Xenova/all-MiniLM-L6-v2-GGUF/all-MiniLM-L6-v2-Q4_K_M.gguf"
+)
+
+# Ou charger depuis un fichier local
+model = TextEmbedding("/path/to/model.Q4_K_M.gguf")
+
+embeddings = model.embed(["Hello world"])
+```
+
+Utilisez `TextEmbedding.supports_llamacpp()` pour vérifier si le backend llama.cpp est disponible à l'exécution.
+
+### Auto-tuning workers (llama.cpp)
+
+Pour le backend llama.cpp, le nombre optimal de sessions/workers peut être détecté automatiquement :
+
+```python
+from libembedding import TextEmbedding
+
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5-GGUF",
+    auto_workers=True,      # détecte automatiquement les sessions optimales
+    cache_size=4096,        # cache LRU optionnel
+)
+```
+
+## Cache LRU d'embeddings
+
+Activez un cache LRU pour éviter les inférences répétées sur les mêmes textes :
+
+```python
+from libembedding import TextEmbedding
+
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5",
+    cache_size=8192,  # 8192 entrées max, 0 = désactivé
+)
+
+# Les embeddings sont mis en cache automatiquement
+embeddings = model.embed(["Hello world", "Hello world"])  # 2e appel = cache hit
+```
+
+### Cas d'usage du cache
+
+- **Benchmarks** : éviter de re-calculer les mêmes embeddings
+- **Indexation incrémentale** : détecter les doublons
+- **Développement** : accélérer les itérations
 
 ### Répertoire de cache par défaut
 
@@ -268,3 +323,36 @@ Pour des performances optimales :
 3. **Utilisez un provider GPU** — `cuda`, `coreml`, ou `directml`
 4. **Activez la quantification** — choisissez les modèles `_Q` pour une inférence plus rapide
 5. **Désactivez la progression** — `show_download_progress=False` pour les scripts
+
+## Scheduler de batching dynamique (llama.cpp)
+
+Pour le backend llama.cpp, le scheduler regroupe dynamiquement les requêtes en lots pour améliorer le débit :
+
+```python
+from libembedding import TextEmbedding
+
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5-GGUF",
+    auto_workers=True,
+)
+
+# Le scheduler est activé automatiquement selon la configuration
+embeddings = model.embed(texts)
+```
+
+### Stratégie de batching
+
+| Stratégie | Description | Cas d'usage |
+|-----------|-------------|-------------|
+| `naive` | Traitement séquentiel | Textes de longueur similaire |
+| `length_bucket` | Tri par longueur puis batch | Corpus hétérogène (short + long) |
+
+```python
+# Force le bucketing pour du texte hétérogène
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5",
+    batch_strategy="length_bucket",
+)
+```
+
+> **Note** : Le bucketing est actuellement supporté sur le backend ONNX. Le support llama.cpp est en cours d'évaluation.

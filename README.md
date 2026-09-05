@@ -48,10 +48,15 @@ lembed_text_embedding_free(embedder);
 
 ## Features
 
-- **44 text embedding models** (BGE, MiniLM, Nomic, E5, CLIP, Jina, GTE, Snowflake, ModernBERT, EmbeddingGemma, etc.)
+- **44 text embedding models** (BGE, MiniLM, Nomic, E5, CLIP, Jina, GTE, Snowflake, ModernBERT, EmbeddingGemma, etc.) with quantized variants
 - **2 sparse embedding models** (SPLADE++, BGE-M3)
-- **5 image embedding models** (CLIP ViT-B-32, ResNet-50, Unicom, Nomic Vision)
-- **4 reranker models** (BGE Reranker, Jina Reranker)
+- **6 image embedding models** (CLIP ViT-B-32, ResNet-50, Unicom, Nomic Vision, CLIP ViT-B-32 INT8 quantized)
+- **5 reranker models** (BGE Reranker, Jina Reranker, Jina V1 Turbo INT8 quantized)
+- **llama.cpp / GGUF backend support** — run any `.gguf` embedding model (Q4_K_M, Q8_0, etc.)
+- **Unified auto-tuner** — single API (`autotune_unified`) for tuning text, sparse, image, and reranker workloads
+- **Autotune cache with hardware fingerprint** — results cached by CPU + OS + RAM + software version for instant re-configuration
+- **Automatic model selection** — `auto_select_model()` picks the best model for your hardware and use case
+- **Quantized image and reranker models** (INT8, ~4x smaller, minimal accuracy impact)
 - **Python bindings** via `pip install libembedding-ng` -- drop-in fastembed replacement
 - Automatic model downloading and caching from HuggingFace Hub
 - Pure C API (`extern "C"`) for maximum FFI compatibility
@@ -66,6 +71,7 @@ lembed_text_embedding_free(embedder);
 - Streaming embeddings (`embed_stream`) for constant-memory processing of large corpora
 - Multi-worker `TextEmbeddingPool` (inter-session parallelism, up to ~4x throughput)
 - Autotuner and automatic model selection for optimal CPU configuration
+- **Unified benchmark** — compare ONNX vs llama.cpp backends on the same corpus
 - Offline mode (cache-only, no downloads)
 
 ## Requirements
@@ -73,6 +79,7 @@ lembed_text_embedding_free(embedder);
 | Dependency | Required | Notes |
 |---|---|---|
 | **ONNX Runtime** >= 1.16 | Yes | Bundled dans les wheels PyPI et sur Windows. Sur macOS/Linux, copié automatiquement à côté des exécutables au build. |
+| **llama.cpp** | Yes | Fetched via CMake `FetchContent` (v0.3.0). Always enabled — provides the GGUF backend. |
 | **libcurl** >= 7.0 | Optional | Pour le téléchargement de modèles. Copié automatiquement à côté des exécutables sur toutes les plateformes. Désactivé avec `-DLIBEMBEDDING_NO_DOWNLOAD=ON` |
 | **cJSON** | Bundled | Included in `third_party/` |
 | **stb_image** | Bundled | Included in `third_party/`. Disable with `-DLIBEMBEDDING_NO_IMAGE=ON` |
@@ -199,6 +206,49 @@ void my_function(void) {
 
 > **Note:** On Linux/macOS, files that `#define LIBEMBEDDING_IMPLEMENTATION` must be compiled as C++ (`.cpp`); files that only call the C API (without the implementation define) can be plain C. On Windows, libembedding is consumed as a prebuilt `libembedding.dll` (built by CMake) and linked through its import library / cffi bindings, so no in-project implementation file is required.
 
+## Performance Recommendations
+
+### llama.cpp Backend
+
+For CPU-bound embedding workloads with small BERT-style models, the optimal configuration is:
+
+- **threads = 1** per session
+- **workers/sessions = physical_cores × 2** (capped at 8)
+- **batch_size = 8-32**
+- **Use `LENGTH_BUCKET` batching** when text lengths vary significantly
+
+```python
+from libembedding import TextEmbedding
+
+# Auto-detect optimal worker count
+model = TextEmbedding(
+    "BAAI/bge-small-en-v1.5",
+    auto_workers=True,        # auto-detect sessions
+    cache_size=4096,          # optional LRU cache
+)
+
+# Or use a preset mode
+model = TextEmbedding.from_mode("balanced")
+```
+
+### ONNX Backend
+
+- Use `LENGTH_BUCKET` batch strategy to minimize padding overhead
+- Set `threads` to the number of physical cores
+- `batch_size = 32-128` depending on available RAM
+
+### Verified Baseline (i7-1065G7, MiniLM-L6-v2 Q4_K_M)
+
+| Sessions | Threads | Strategy | Throughput |
+|----------|---------|----------|------------|
+| 1 | 1 | naive | 41.8 docs/s |
+| 1 | 4 | naive | 72.1 docs/s |
+| 6 | 1 | naive | **125.9 docs/s** |
+| 8 | 1 | naive | 129.4 docs/s |
+| 6 | 2 | naive | 87.6 docs/s |
+
+Key takeaway: intra-session multithreading beyond 1 thread degrades throughput for embedding models. Prefer more single-threaded sessions.
+
 ## C API Reference
 
 ### Error Handling
@@ -228,6 +278,7 @@ Status codes:
 | `LEMBED_ERROR_MODEL_NOT_FOUND` | Unknown model enum |
 | `LEMBED_ERROR_UNSUPPORTED` | Feature disabled at compile time |
 | `LEMBED_ERROR_BATCH_SIZE` | Batch size incompatible with dynamic quantization |
+| `LEMBED_ERROR_LLAMA` | llama.cpp backend error (model load, inference, etc.) |
 
 ---
 
@@ -344,6 +395,7 @@ lembed_image_embedding_free(embedder);
 | Enum | Model | Dim |
 |---|---|---|
 | `LEMBED_IMAGE_CLIP_VIT_B32` | CLIP ViT-B/32 (default) | 512 |
+| `LEMBED_IMAGE_CLIP_VIT_B32_QUANTIZED` | CLIP ViT-B/32 INT8 quantized | 512 |
 | `LEMBED_IMAGE_RESNET50` | ResNet-50 | 2048 |
 | `LEMBED_IMAGE_UNICOM_VIT_B16` | Unicom ViT-B/16 | 768 |
 | `LEMBED_IMAGE_UNICOM_VIT_B32` | Unicom ViT-B/32 | 512 |
@@ -388,10 +440,11 @@ lembed_reranker_free(reranker);
 
 | Enum | Model |
 |---|---|
-| `LEMBED_RERANKER_BGE_BASE` | BAAI/bge-reranker-base (default) |
+| `LEMBED_RERANKER_BGE_BASE` | BAAI/bge-reranker-base |
 | `LEMBED_RERANKER_BGE_V2_M3` | BAAI/bge-reranker-v2-m3 (multilingual) |
 | `LEMBED_RERANKER_JINA_V1_TURBO_EN` | jinaai/jina-reranker-v1-turbo-en |
 | `LEMBED_RERANKER_JINA_V2_BASE_MULTILINGUAL` | jinaai/jina-reranker-v2-base-multilingual |
+| `LEMBED_RERANKER_JINA_V1_TURBO_EN_QUANTIZED` | jinaai/jina-reranker-v1-turbo-en (INT8) |
 
 ---
 
@@ -493,6 +546,10 @@ typedef struct {
     int                         offline;        // default: 0 (0=allow download, 1=cache-only)
     int                         pooling;        // default: LEMBED_POOLING_MEAN (for local models)
     int                         dim;            // default: 0 (for local models without config.json)
+    /* llama.cpp backend options (only used when provider = LEMBED_PROVIDER_LLAMACPP) */
+    int                         llama_n_ctx;    // context size (0 = model default)
+    int                         llama_n_gpu_layers; // GPU layers (-1 = all, 0 = CPU only)
+    int                         llama_verbose;  // 1 = enable llama.cpp logging
 } lembed_text_options_t;
 ```
 
@@ -507,6 +564,7 @@ The `batch_size`, `offline`, `pooling`, and `dim` fields are available in all op
 | `LEMBED_PROVIDER_COREML` | Apple CoreML (macOS/iOS) |
 | `LEMBED_PROVIDER_DIRECTML` | DirectML (Windows, requires `USE_DML` + ORT DML provider) |
 | `LEMBED_PROVIDER_TENSORRT` | NVIDIA TensorRT (requires `USE_TENSORRT`) |
+| `LEMBED_PROVIDER_LLAMACPP` | llama.cpp backend for GGUF models (always enabled) |
 
 Providers are configured via `configure_provider()` and gracefully fall back to CPU if the provider library is unavailable.
 
@@ -540,6 +598,118 @@ if (s == LEMBED_OK) {
 If `config.json` is present, `dim`, `max_length`, and `pooling` are auto-detected. Without it, specify via the options struct.
 
 `create_from_path` is available for all model types: `lembed_text_embedding_create_from_path()`, `lembed_sparse_text_embedding_create_from_path()`, `lembed_image_embedding_create_from_path()`, `lembed_reranker_create_from_path()`.
+
+---
+
+### llama.cpp / GGUF Backend
+
+In addition to ONNX Runtime, libembedding can load GGUF embedding models through the llama.cpp backend. This allows running quantized models (Q4_K_M, Q8_0, etc.) that are smaller and faster on certain hardware.
+
+The llama.cpp backend is always enabled by default, so no extra flag is required:
+
+```bash
+cmake ..
+cmake --build . --parallel
+```
+
+Or via CMake, point to a custom llama.cpp installation if needed:
+
+```cmake
+set(LLAMACPP_ROOT "/path/to/llama.cpp")
+```
+
+llama.cpp is fetched via CMake `FetchContent` (v0.3.0) by default. The `LEMBED_PROVIDER_LLAMACPP` execution provider and GGUF loading functions are always available:
+
+```c
+#include <libembedding/gguf_registry.h>
+#include <libembedding/text_embedding.h>
+#include <libembedding/llamacpp_backend.h>
+
+/* Check if llama.cpp backend is compiled in */
+int available = lembed_llama_backend_available();  /* 1 if compiled, 0 otherwise */
+const char* ver = lembed_llama_version();          /* version string */
+
+/* Load a GGUF model from a local file */
+lembed_text_options_t opts = lembed_text_options_default();
+opts.provider = LEMBED_PROVIDER_LLAMACPP;
+opts.llama_n_gpu_layers = 0;  /* 0 = CPU only, -1 = all layers on GPU */
+
+lembed_text_embedding_t* embedder = NULL;
+lembed_text_embedding_create_from_gguf_path(
+    "/path/to/model.Q4_K_M.gguf", &opts, &embedder);
+
+/* Or download from HuggingFace (downloads the .gguf file to cache) */
+char* model_path = NULL;
+lembed_ensure_gguf_model(
+    "Xenova/all-MiniLM-L6-v2-GGUF",
+    "all-MiniLM-L6-v2-Q4_K_M.gguf",
+    NULL,  /* cache_dir = default */
+    1,     /* show_progress */
+    0,     /* offline */
+    &model_path);
+
+lembed_text_embedding_create_from_gguf_path(model_path, &opts, &embedder);
+lembed_free_string(model_path);
+
+/* List recommended GGUF models */
+const lembed_gguf_model_info_t* models;
+int count;
+lembed_list_gguf_models(&models, &count);
+for (int i = 0; i < count; i++) {
+    printf("%-32s dim=%-4d quality=%.3f\n",
+           models[i]->name, models[i]->dim, models[i]->quality_mteb);
+}
+```
+
+**Recommended GGUF models** are listed in the registry. Query them with `lembed_list_gguf_models()`, `lembed_find_gguf_model()`, or `lembed_default_gguf_model()`.
+
+---
+
+### Unified Auto-Tuner and Benchmark
+
+libembedding includes a comprehensive auto-tuning system that optimizes thread count, batch size, and worker count for your specific hardware. The unified API covers all task types:
+
+```python
+from libembedding import autotune, autotune_unified, LEMBED_TASK_EMBEDDING, LEMBED_AUTOTUNE_QUICK
+
+# Quick auto-tune for text embedding (5-15s)
+result = autotune("BAAI/bge-small-en-v1.5", LEMBED_AUTOTUNE_QUICK)
+print(result.threads, result.batch_size, result.workers)
+
+# Unified API — same pattern for all task types
+from libembedding import autotune_unified, LEMBED_TASK_SPARSE, LEMBED_TASK_IMAGE, LEMBED_TASK_RERANKING
+result = autotune_unified(LEMBED_TASK_RERANKING, "BAAI/bge-reranker-base", LEMBED_AUTOTUNE_FULL)
+```
+
+The **unified benchmark** compares ONNX and llama.cpp backends on identical corpora:
+
+```python
+from libembedding import Benchmark, CorpusType, Objective
+
+bench = Benchmark()
+print(bench.hardware)   # Hardware fingerprint
+print(bench.software)   # Software versions
+
+# Compare backends for the same model
+comparison = bench.compare_all(
+    onnx_path="/path/to/model.onnx",
+    gguf_path="/path/to/model.Q4_K_M.gguf",
+    corpus=CorpusType.MIXED,
+    objective=Objective.BALANCED,
+)
+print(comparison.recommendation)
+```
+
+**Autotune cache**: Results are cached using a hardware fingerprint (CPU name, core count, RAM, OS, SIMD features) combined with software versions and model quantization. Subsequent runs load instantly from `lembed_tune_cache_path()`.
+
+**Automatic model selection**: Let libembedding pick the best model for your hardware:
+
+```python
+from libembedding import auto_select_model
+
+best = auto_select_model("balanced")  # or "speed" / "quality"
+print(best.model_name, best.dim, best.threads)
+```
 
 ---
 
@@ -630,7 +800,7 @@ float dist = lembed_euclidean_distance(vec_a, vec_b, dim);
 
 ```c
 #include <libembedding/config.h>
-const char* version = lembed_version();  /* e.g. "0.2.0" */
+const char* version = lembed_version();  /* e.g. "1.4.0" */
 ```
 
 ---
@@ -675,6 +845,16 @@ Or via CMake:
 ```bash
 cmake .. -DLIBEMBEDDING_NO_DOWNLOAD=ON -DLIBEMBEDDING_NO_IMAGE=ON
 ```
+
+CMake options:
+
+| Option | Default | Description |
+|---|---|---|
+| `LIBEMBEDDING_NO_DOWNLOAD` | OFF | Disable model downloading (offline-only) |
+| `LIBEMBEDDING_NO_IMAGE` | OFF | Disable image embedding (removes stb_image dependency) |
+| `LIBEMBEDDING_BUILD_SHARED` | OFF | Build shared library / DLL (required for Python bindings) |
+| `LIBEMBEDDING_BUILD_BENCHMARKS` | OFF | Build benchmark executables |
+| `LIBEMBEDDING_BUILD_TESTS` | ON | Build unit tests |
 
 ## Benchmarks
 
@@ -782,36 +962,60 @@ pool.close()
 ## Architecture
 
 ```
-                    +-----------------------+
-                    |   libembedding.h      |  <-- single include
-                    |   (umbrella header)   |
-                    +-----------+-----------+
+                     +-----------------------+
+                     |   libembedding.h      |  <-- single include
+                     |   (umbrella header)   |
+                     +-----------+-----------+
+                                 |
+      +--------+--------+---+---+---+--------+--------+
+      |        |        |       |   |        |        |
+   types.h  error.h  model   text  image  sparse  reranker.h
+                    registry emb.  emb.   emb.
+                       .h    .h    .h     .h
+                              |       |        |
+                    +---------+-----------+-----------+
+                    |       detail/ (C++ internals)   |
+                    |                                 |
+                    |  onnx_session_impl.hpp          |
+                    |  llama_session_impl.hpp (llama.cpp) |
+                    |  tokenizer_impl.hpp (built-in)  |
+                    |  pooling.hpp / normalize.hpp    |
+                    |  downloader_impl.hpp            |
+                    |  sparse_postprocess.hpp         |
+                    |  image_preprocess.hpp           |
+                    +---------------------------------+
                                 |
-     +--------+--------+---+---+---+--------+--------+
-     |        |        |       |   |        |        |
-  types.h  error.h  model   text  image  sparse  reranker.h
-                   registry emb.  emb.   emb.
-                      .h    .h    .h     .h
-                             |       |        |
-                   +---------+-----------+-----------+
-                   |       detail/ (C++ internals)   |
-                   |                                 |
-                   |  onnx_session_impl.hpp          |
-                   |  tokenizer_impl.hpp (built-in)  |
-                   |  pooling.hpp / normalize.hpp    |
-                   |  downloader_impl.hpp            |
-                   |  sparse_postprocess.hpp         |
-                   |  image_preprocess.hpp           |
-                   +---------------------------------+
-                               |
-                   +-----------+-----------+
-                   |    External deps      |
-                   |  ONNX Runtime (C API) |
-                   |  cJSON (bundled)      |
-                   |  stb_image (bundled)  |
-                   |  libcurl (optional)   |
-                   +-----------------------+
+                    +-----------+-----------+-----------+
+                    |    External deps      |           |
+                    |  ONNX Runtime (C API) |  llama.cpp  |
+                    |  cJSON (bundled)      |  (optional) |
+                    |  stb_image (bundled)  |           |
+                    |  libcurl (optional)   |           |
+                    +-----------------------------+--------+
 ```
+
+---
+
+### Python llama.cpp Example
+
+```python
+from libembedding import TextEmbedding, LlamaError
+
+# Load a GGUF model (requires build with llama.cpp support)
+try:
+    model = TextEmbedding.from_gguf(
+        "Xenova/all-MiniLM-L6-v2-GGUF",
+        filename="all-MiniLM-L6-v2-Q4_K_M.gguf",
+        provider="llama.cpp",
+        n_gpu_layers=0,
+    )
+    embeddings = model.embed(["Hello world"])
+except LlamaError as e:
+    print(f"llama.cpp error: {e}")
+    print(f"Details: {e.last_error}")
+```
+
+The `LlamaError` exception is raised for llama.cpp-specific failures. Use `TextEmbedding.supports_llamacpp()` to check at runtime.
 
 ## License
 

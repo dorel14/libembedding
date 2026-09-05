@@ -7,7 +7,7 @@ nav_exclude: true
 Welcome to the **libembedding** documentation, a fast embedding library with both **C/C++** and **Python** APIs powered by ONNX Runtime.
 
 > **Forked from [pacifio/libembedding](https://github.com/pacifio/libembedding).**
-> This fork adds Windows support (native DLL), PyPI packaging as `libembedding-ng`, local model loading, runtime introspection, similarity helpers, streaming, a multi-worker pool, an autotuner and automatic model selection.
+> This fork adds Windows support (native DLL), PyPI packaging as `libembedding-ng`, local model loading, runtime introspection, similarity helpers, streaming, a multi-worker pool, an autotuner and automatic model selection, llama.cpp/GGUF backend support, length bucketing, LRU cache, dynamic scheduler, and FAST/BALANCED/QUALITY modes.
 
 ## Documentation structure
 
@@ -17,7 +17,7 @@ Welcome to the **libembedding** documentation, a fast embedding library with bot
 | **Python API** | [api_reference.html](api_reference.html) | Complete reference of Python classes |
 | **Models** | [models.html](models.html) | Catalog of available models (text, image, sparse, reranker) |
 | **Performance** | [performance_tuning.html](performance_tuning.html) | Session pool, auto-tuning, automatic model selection |
-| **Advanced usage** | [advanced_usage.html](advanced_usage.html) | Local models, providers, cache, offline mode, context managers |
+ | **Advanced usage** | [advanced_usage.html](advanced_usage.html) | Local models, providers, cache, offline mode, context managers, GGUF/llama.cpp models |
 | **Error handling** | [api_reference.html#error-handling](api_reference.html#error-handling) | Python exception hierarchy |
 | **Français** | [../index.html](../index.html) | Documentation française |
 

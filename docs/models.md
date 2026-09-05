@@ -124,7 +124,7 @@ for m in libembedding.list_text_models():
 
 ---
 
-## Modèles d'images (5 modèles)
+## Modèles d'images (6 modèles)
 
 | Nom HuggingFace | Dim | Description |
 |-----------------|-----|-------------|
@@ -132,7 +132,23 @@ for m in libembedding.list_text_models():
 | `microsoft/resnet-50` | 2048 | ResNet-50 |
 | `open-metric-learning/unicom-vit-b-16` | 768 | Unicom ViT-B/16 |
 | `open-metric-learning/unicom-vit-b-32` | 512 | Unicom ViT-B/32 |
-| `nomic-ai/nomic-embed-vision-v1.5` | 768 | Nomic embed vision v1.5 |
+ | `nomic-ai/nomic-embed-vision-v1.5` | 768 | Nomic embed vision v1.5 |
+| `Xenova/clip-vit-base-patch32` | 512 | CLIP ViT-B/32 INT8 quantifié |
+
+---
+
+## Modèles GGUF (backend llama.cpp)
+
+Les modèles GGUF sont chargés par chemin de fichier (pas par enum). Ils utilisent le backend llama.cpp.
+
+| Nom du modèle | Dim | Quantification | Description |
+|---|---|---|---|
+| `all-MiniLM-L6-v2` | 384 | Q4_K_M | MiniLM L6, ~4-bit |
+| `all-MiniLM-L12-v2` | 384 | Q4_K_M | MiniLM L12, ~4-bit |
+| `bge-small-en-v1.5` | 384 | Q4_K_M | BGE small, ~4-bit |
+| `bge-base-en-v1.5` | 768 | Q4_K_M | BGE base, ~4-bit |
+| `bge-large-en-v1.5` | 1024 | Q4_K_M | BGE large, ~4-bit |
+| `snowflake-arctic-embed-xs` | 384 | Q4_K_M | Snowflake XS, ~4-bit |
 
 ---
 
@@ -147,14 +163,15 @@ for m in libembedding.list_text_models():
 
 ---
 
-## Modèles de reranking (4 modèles)
+## Modèles de reranking (5 modèles)
 
-| Nom HuggingFace | Tokens max | Description |
-|-----------------|-----------|-------------|
+| HuggingFace name | Max tokens | Description |
+|------------------|-----------|-------------|
 | `BAAI/bge-reranker-base` | 512 | BGE Reranker base (défaut) |
 | `BAAI/bge-reranker-v2-m3` | 512 | BGE Reranker v2 multilingue |
 | `jinaai/jina-reranker-v1-turbo-en` | 8192 | Jina Reranker v1 turbo anglais |
 | `jinaai/jina-reranker-v2-base-multilingual` | 8192 | Jina Reranker v2 multilingue |
+| `jinaai/jina-reranker-v1-turbo-en` (quantized) | 8192 | Jina Reranker v1 turbo (INT8) |
 
 ---
 

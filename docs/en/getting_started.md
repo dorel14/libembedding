@@ -29,6 +29,35 @@ sudo apt install libonnxruntime-dev
 
 > **Note:** If ONNX Runtime is not found automatically, set the `ONNXRUNTIME_ROOT` environment variable to your installation path.
 
+## llama.cpp backend
+
+The llama.cpp backend is enabled by default and allows loading GGUF models:
+
+```bash
+cmake .. -DLIBEMBEDDING_BUILD_SHARED=ON
+cmake --build . --parallel
+```
+
+Then install the Python bindings:
+
+```bash
+pip install libembedding-ng --no-binary :all:  # builds from source with llama.cpp
+# or, if a prebuilt wheel with llama.cpp is available:
+pip install libembedding-ng
+```
+
+Check availability at runtime:
+
+```python
+from libembedding import TextEmbedding
+
+if TextEmbedding.supports_llamacpp():
+    model = TextEmbedding.from_gguf(
+        "Xenova/all-MiniLM-L6-v2-GGUF",
+        filename="all-MiniLM-L6-v2-Q4_K_M.gguf",
+    )
+```
+
 ## Verifying the installation
 
 ```python
