@@ -55,7 +55,7 @@ class TextEmbedding:
         *,
         provider: str = "cpu",
         threads: int = 0,
-        batch_size: int = 32,
+        batch_size: int = 256,
         offline: bool = False,
         show_download_progress: bool = True,
         cache_dir: str | None = None,
