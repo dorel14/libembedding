@@ -322,7 +322,8 @@ void lembed_image_embedding_free(lembed_image_embedding_t* ctx);
 /* â”€â”€ Functions: Reranker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 lembed_status_t lembed_reranker_create(const lembed_reranker_options_t* options, lembed_reranker_t** out);
-lembed_status_t lembed_reranker_create_from_path(const char* dir_path, const lembed_reranker_options_t* options, lembed_reranker_t** out);
+lembed_status_t lembed_reranker_create_from_path(const char* path, const lembed_reranker_options_t* options, lembed_reranker_t** out);
+lembed_status_t lembed_reranker_create_from_gguf_path(const char* gguf_path, const lembed_reranker_options_t* options, lembed_reranker_t** out);
 lembed_status_t lembed_reranker_rerank(lembed_reranker_t* ctx, const char* query, const char* const* documents, int num_documents, int batch_size, lembed_rerank_results_t* result);
 const lembed_model_desc_t* lembed_reranker_desc(const lembed_reranker_t* ctx);
 const char* lembed_reranker_model_name(const lembed_reranker_t* ctx);

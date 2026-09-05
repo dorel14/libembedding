@@ -80,8 +80,12 @@ class Reranker:
             check_status(lib.lembed_reranker_create(ffi.addressof(opts), ctx_ptr))
         except ModelNotFoundError:
             if _is_local_path(model_name):
-                check_status(lib.lembed_reranker_create_from_path(
-                    model_name.encode("utf-8"), ffi.addressof(opts), ctx_ptr))
+                if model_name.lower().endswith(".gguf"):
+                    check_status(lib.lembed_reranker_create_from_gguf_path(
+                        model_name.encode("utf-8"), ffi.addressof(opts), ctx_ptr))
+                else:
+                    check_status(lib.lembed_reranker_create_from_path(
+                        model_name.encode("utf-8"), ffi.addressof(opts), ctx_ptr))
             else:
                 raise
 

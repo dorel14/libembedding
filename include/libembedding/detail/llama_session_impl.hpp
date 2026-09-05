@@ -179,6 +179,43 @@ public:
         return result;
     }
 
+    float classify(const char* text) {
+        if (!ctx_) throw std::runtime_error("LlamaSession: null context");
+
+        std::vector<llama_token> tokens;
+        tokenize(text, tokens);
+        if (tokens.empty()) return 0.0f;
+
+        llama_batch batch = llama_batch_init((int32_t)tokens.size(), 0, 1);
+        batch.n_tokens = 0;
+
+        for (size_t i = 0; i < tokens.size(); i++) {
+            batch.token[batch.n_tokens] = tokens[i];
+            batch.pos[batch.n_tokens] = (llama_pos)i;
+            batch.seq_id[batch.n_tokens][0] = 0;
+            batch.n_seq_id[batch.n_tokens] = 1;
+            batch.logits[batch.n_tokens] = 1;
+            batch.n_tokens++;
+        }
+
+        llama_memory_clear(llama_get_memory(ctx_), false);
+
+        int ret = llama_decode(ctx_, batch);
+        llama_batch_free(batch);
+        if (ret != 0) {
+            throw std::runtime_error("llama_decode failed for classification");
+        }
+
+        const float* logits = llama_get_logits(ctx_);
+        if (!logits) {
+            throw std::runtime_error("Failed to retrieve logits from llama context");
+        }
+
+        int last_token = (int)tokens.size() - 1;
+        int n_vocab = llama_vocab_n_tokens(llama_model_get_vocab(model_));
+        return logits[last_token * n_vocab];
+    }
+
 private:
     struct llama_model* model_;
     struct llama_context* ctx_;
