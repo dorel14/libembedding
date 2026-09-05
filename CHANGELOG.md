@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.5.7 (2026-09-05)
+
+### Bug Fixes
+
+- Add missing TextEmbedding properties and correct embed/stats methods
+  ([`ae22c3c`](https://github.com/dorel14/libembedding/commit/ae22c3caa5650d7737042ec0ce5bcc3ff5f2145d))
+
+
 ## v1.5.6 (2026-09-05)
 
 ### Bug Fixes
