@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.5.8 (2026-09-05)
+
+### Bug Fixes
+
+- Set TextEmbedding default batch_size to 256 to match C API
+  ([`8bf437a`](https://github.com/dorel14/libembedding/commit/8bf437adf6b5ce2326757a9de46449406fdf1917))
+
+
 ## v1.5.7 (2026-09-05)
 
 ### Bug Fixes
