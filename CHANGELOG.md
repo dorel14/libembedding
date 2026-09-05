@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v1.4.0 (2026-09-05)
+
+### Chores
+
+- Finalize llama.cpp bundling and remaining integration cleanup
+  ([`b18cc91`](https://github.com/dorel14/libembedding/commit/b18cc91e5c885266c541c07a5d9dd1c55a9de0c0))
+
+### Documentation
+
+- Update README and GitHub Pages for v1.4.0
+  ([`d1cffad`](https://github.com/dorel14/libembedding/commit/d1cffad4ba8a73bec29cbf796bd99f52fe590f41))
+
+### Features
+
+- Integrate llama.cpp v0.3.0 as always-on backend
+  ([`daf69ea`](https://github.com/dorel14/libembedding/commit/daf69eaf5af3d5d902457a49655b11b11b24afba))
+
+### Testing
+
+- Add llama.cpp integration tests
+  ([`d932cde`](https://github.com/dorel14/libembedding/commit/d932cde55991d51ea8b46c80bfd42a05ffcaeb49))
+
+
 ## v1.3.0 (2026-08-29)
 
 ### Bug Fixes
