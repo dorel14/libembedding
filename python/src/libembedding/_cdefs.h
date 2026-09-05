@@ -224,19 +224,6 @@ const char* lembed_mode_to_string(lembed_embedding_mode_t mode);
 lembed_text_model_t lembed_recommended_model_for_mode(lembed_embedding_mode_t mode);
 
 typedef struct {
-    lembed_text_model_t model;
-    const char* model_code;
-    int dim;
-    int workers;
-    int threads;
-    int batch_size;
-    float throughput_docs_sec;
-    float latency_ms;
-    float memory_mb;
-    float score;
-} lembed_model_selection_t;
-
-typedef struct {
     lembed_image_model_t        model;
     lembed_execution_provider_t provider;
     int                         device_id;
@@ -425,10 +412,11 @@ typedef struct {
     int workers;
     int threads;
     int batch_size;
-    float throughput_docs_sec;
-    float latency_ms;
-    float memory_mb;
-    float score;
+    double throughput_docs_sec;
+    double latency_ms;
+    double memory_mb;
+    double score;
+} lembed_model_selection_t;
 
 /* Auto-select best model for hardware and use case.
  * use_case: "speed", "quality", or "balanced" (default) */
