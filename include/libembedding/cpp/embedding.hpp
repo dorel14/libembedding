@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - cpp/embedding.hpp
  * All C++ wrapper classes.
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -14,3 +17,7 @@
 #include <libembedding/cpp/reranker_model.hpp>
 
 #endif /* LIBEMBEDDING_CPP_EMBEDDING_HPP */
+
+
+
+
