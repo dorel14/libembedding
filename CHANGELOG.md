@@ -1,6 +1,17 @@
 # CHANGELOG
 
 
+## v1.5.2 (2026-09-05)
+
+### Bug Fixes
+
+- Correct include path for model_registry.h in embedding_mode_impl.hpp
+  ([`b4c7306`](https://github.com/dorel14/libembedding/commit/b4c73061e1ebce7f52cfa88d315a99481120d57b))
+
+The detail/embedding_mode_impl.hpp file incorrectly included model_registry.h without the ../
+  prefix, causing a build failure on all platforms when compiling the shared library.
+
+
 ## v1.5.1 (2026-09-05)
 
 ### Bug Fixes
