@@ -12,7 +12,7 @@ import cffi
 ffi = cffi.FFI()
 
 _cdefs_path = Path(__file__).with_name("_cdefs.h")
-ffi.cdef(_cdefs_path.read_text())
+ffi.cdef(_cdefs_path.read_text(encoding="utf-8"))
 
 
 def _find_library() -> str:

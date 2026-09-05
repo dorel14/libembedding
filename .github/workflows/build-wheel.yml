@@ -117,7 +117,13 @@ jobs:
             cmake_args+=("-DCURL_LIBRARY=$CURL_LIBRARY")
           fi
           cmake .. "${cmake_args[@]}"
-          cmake --build . --parallel --target embedding_shared --config Release
+          # Limit parallel build on Linux/macOS to avoid OOM when compiling
+          # the bundled llama.cpp with all models.
+          if [ "$(uname)" = "Linux" ] || [ "$(uname)" = "Darwin" ]; then
+            cmake --build . --parallel 2 --target embedding_shared --config Release
+          else
+            cmake --build . --parallel --target embedding_shared --config Release
+          fi
 
       # ── Copy shared library into the Python package ──────────────
       - name: Copy shared libraries (Linux/macOS)
