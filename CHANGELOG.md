@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.5.6 (2026-09-05)
+
+### Bug Fixes
+
+- Correct lembed_free_string usage and add num_threads deprecation in TextEmbedding
+  ([`40947d3`](https://github.com/dorel14/libembedding/commit/40947d340fff1fa47dbb76944b01099f2a228f3a))
+
+
 ## v1.5.5 (2026-09-05)
 
 
