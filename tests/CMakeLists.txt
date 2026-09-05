@@ -21,7 +21,7 @@ add_executable(test_similarity test_similarity.cpp)
 target_link_libraries(test_similarity PRIVATE libembedding)
 add_test(NAME test_similarity COMMAND test_similarity)
 
-# Test local loading (no network required — tests error paths)
+# Test local loading (no network required â€” tests error paths)
 add_executable(test_local_loading test_local_loading.cpp)
 target_link_libraries(test_local_loading PRIVATE libembedding)
 # This test only exercises create_from_path error paths; no download code needed.
@@ -66,6 +66,30 @@ if(LIBEMBEDDING_INTEGRATION_TESTS)
     target_link_libraries(test_reranker PRIVATE libembedding)
     add_test(NAME test_reranker COMMAND test_reranker)
 
+    # llama.cpp backend tests (standalone - compiles implementation directly)
+    add_executable(test_llama_embedding test_llama_embedding.cpp)
+    target_include_directories(test_llama_embedding PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/third_party
+        ${CMAKE_SOURCE_DIR}/third_party/cJSON
+        ${llama.cpp_SOURCE_DIR}/include
+        ${llama.cpp_SOURCE_DIR}/ggml/include
+    )
+    target_compile_definitions(test_llama_embedding PRIVATE
+        LIBEMBEDDING_IMPLEMENTATION
+    )
+    target_link_directories(test_llama_embedding PRIVATE
+        ${CMAKE_BINARY_DIR}/_deps/llama.cpp-build/src/Release
+        ${CMAKE_BINARY_DIR}/_deps/llama.cpp-build/ggml/src/Release
+        ${CMAKE_BINARY_DIR}/lib/Release
+    )
+    target_link_libraries(test_llama_embedding PRIVATE llama ggml)
+    # Add onnxruntime path via linker flag (llama.cpp dependency)
+    target_link_options(test_llama_embedding PRIVATE
+        "/LIBPATH:${CMAKE_CURRENT_SOURCE_DIR}/../third_party/onnxruntime/lib"
+    )
+    add_test(NAME test_llama_embedding COMMAND test_llama_embedding)
+
     if(NOT LIBEMBEDDING_NO_IMAGE)
         add_executable(test_image_embedding test_image_embedding.cpp)
         target_link_libraries(test_image_embedding PRIVATE libembedding)
@@ -76,6 +100,7 @@ if(LIBEMBEDDING_INTEGRATION_TESTS)
         foreach(_t test_text_embedding test_introspection test_sparse_embedding test_reranker)
             copy_runtime_dlls(${_t})
         endforeach()
+        copy_runtime_dlls(test_llama_embedding)
         if(NOT LIBEMBEDDING_NO_IMAGE)
             copy_runtime_dlls(test_image_embedding)
         endif()
@@ -83,6 +108,7 @@ if(LIBEMBEDDING_INTEGRATION_TESTS)
         foreach(_t test_text_embedding test_introspection test_sparse_embedding test_reranker)
             copy_runtime_libs(${_t})
         endforeach()
+        copy_runtime_libs(test_llama_embedding)
         if(NOT LIBEMBEDDING_NO_IMAGE)
             copy_runtime_libs(test_image_embedding)
         endif()
