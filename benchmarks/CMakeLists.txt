@@ -202,6 +202,13 @@ target_compile_definitions(bench_quality PRIVATE
     LIBEMBEDDING_IMPLEMENTATION
 )
 
+# Reranker comparison benchmark (ONNX vs llama.cpp)
+add_executable(bench_reranker_compare bench_reranker_compare.cpp)
+target_link_libraries(bench_reranker_compare PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_reranker_compare PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
 # Bucketing benchmark for llama.cpp
 add_executable(bench_bucket_llamacpp bench_bucket_llamacpp.cpp)
 target_link_libraries(bench_bucket_llamacpp PRIVATE libembedding llama ggml)
@@ -216,7 +223,6 @@ if(EXISTS "${_llama_h_dir}/llama.h")
     foreach(_t bench_llamacpp quick_bench_llamacpp profile_bench_llamacpp inference_profile_llamacpp matrix_bench_llamacpp bench_bucket_llamacpp)
         target_include_directories(${_t} PRIVATE "${_llama_h_dir}" "${_ggml_h_dir}")
     endforeach()
-endif()
 endif()
 
 if(NOT WIN32 AND ONNXRuntime_LIBRARIES)

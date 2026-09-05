@@ -108,21 +108,13 @@ if(NOT LIBEMBEDDING_NO_DOWNLOAD)
 endif()
 
 # =========================================================================
-# llama.cpp (always enabled, fetched via CMake FetchContent)
+# llama.cpp (always enabled, bundled in third_party/)
 # Must be declared BEFORE the main library target so that ggml/llama targets
 # are available when the install(EXPORT) is generated.
 # =========================================================================
-include(FetchContent)
+set(LLAMA_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/llama.cpp")
 
-FetchContent_Declare(
-    llama.cpp
-    GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-    GIT_TAG v0.3.0
-)
-set(FETCHCONTENT_QUIET OFF)
-set(FETCHCONTENT_BASE_DIR ${CMAKE_BINARY_DIR}/_deps)
-
-# llama.cpp options - must be set before FetchContent_MakeAvailable
+# llama.cpp options
 set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
@@ -132,7 +124,7 @@ set(LLAMA_CUDA OFF CACHE BOOL "" FORCE)
 set(LLAMA_VULKAN OFF CACHE BOOL "" FORCE)
 set(LLAMA_METAL OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(llama.cpp)
+add_subdirectory(${LLAMA_CPP_DIR} ${CMAKE_BINARY_DIR}/llama.cpp-build EXCLUDE_FROM_ALL)
 
 
 # =========================================================================
@@ -151,16 +143,16 @@ if(WIN32)
 
     target_link_libraries(libembedding PUBLIC llama ggml)
     target_include_directories(libembedding PUBLIC
-        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/ggml/include>
+        $<BUILD_INTERFACE:${LLAMA_CPP_DIR}/include>
+        $<BUILD_INTERFACE:${LLAMA_CPP_DIR}/ggml/include>
     )
 else()
     # Header-only INTERFACE pour Linux / macOS
     add_library(libembedding INTERFACE)
     target_link_libraries(libembedding INTERFACE llama ggml)
     target_include_directories(libembedding INTERFACE
-        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/ggml/include>
+        $<BUILD_INTERFACE:${LLAMA_CPP_DIR}/include>
+        $<BUILD_INTERFACE:${LLAMA_CPP_DIR}/ggml/include>
     )
 endif()
 
