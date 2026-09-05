@@ -1,8 +1,15 @@
 # Build
 build/
 cmake-build-*/
-build2/
+build*/
 _deps/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
 
 # IDE
 .vscode/
