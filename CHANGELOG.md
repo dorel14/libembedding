@@ -1,15 +1,24 @@
 # CHANGELOG
 
 
+## v1.5.3 (2026-09-05)
+
+
 ## v1.5.2 (2026-09-05)
 
 ### Bug Fixes
+
+- Add missing lembed_sparse_options_t definition to _cdefs.h
+  ([`21f7b3a`](https://github.com/dorel14/libembedding/commit/21f7b3a3440fa3956a79984e8ac053fafe608f7d))
 
 - Correct include path for model_registry.h in embedding_mode_impl.hpp
   ([`b4c7306`](https://github.com/dorel14/libembedding/commit/b4c73061e1ebce7f52cfa88d315a99481120d57b))
 
 The detail/embedding_mode_impl.hpp file incorrectly included model_registry.h without the ../
   prefix, causing a build failure on all platforms when compiling the shared library.
+
+- Use correct target name libembedding_stb for macOS/Linux image linking
+  ([`301157b`](https://github.com/dorel14/libembedding/commit/301157b609fa0f8a5d0ff218b329b6125cffe349))
 
 
 ## v1.5.1 (2026-09-05)
