@@ -92,6 +92,133 @@ add_executable(autotuner_test autotuner_test.cpp)
 target_link_libraries(autotuner_test PRIVATE libembedding)
 target_compile_definitions(autotuner_test PRIVATE LIBEMBEDDING_NO_DOWNLOAD)
 
+# llama.cpp backend benchmarks
+add_executable(bench_llamacpp bench_llamacpp.cpp)
+target_link_libraries(bench_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(quick_bench_llamacpp quick_bench_llamacpp.cpp)
+target_link_libraries(quick_bench_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(quick_bench_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(profile_bench_llamacpp profile_bench_llamacpp.cpp)
+target_link_libraries(profile_bench_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(profile_bench_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(inference_profile_llamacpp inference_profile_llamacpp.cpp)
+target_link_libraries(inference_profile_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(inference_profile_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(matrix_bench_llamacpp matrix_bench_llamacpp.cpp)
+target_link_libraries(matrix_bench_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(matrix_bench_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(diag_llamacpp diag_llamacpp.cpp)
+target_link_libraries(diag_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(diag_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(pool_bench_llamacpp pool_bench_llamacpp.cpp)
+target_link_libraries(pool_bench_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(pool_bench_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(model_compare_llamacpp model_compare_llamacpp.cpp)
+target_link_libraries(model_compare_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(model_compare_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(test_autotuner test_autotuner.cpp)
+target_link_libraries(test_autotuner PRIVATE libembedding llama ggml)
+target_compile_definitions(test_autotuner PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Critical experiment: batch vs pool
+add_executable(batch_vs_pool batch_vs_pool.cpp)
+target_link_libraries(batch_vs_pool PRIVATE libembedding llama ggml)
+target_compile_definitions(batch_vs_pool PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Unified benchmark
+add_executable(test_unified_benchmark test_unified_benchmark.cpp)
+target_link_libraries(test_unified_benchmark PRIVATE libembedding llama ggml)
+target_compile_definitions(test_unified_benchmark PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Benchmark sweep
+add_executable(bench_sweep bench_sweep.cpp)
+target_link_libraries(bench_sweep PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_sweep PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Global benchmark (ONNX vs llama.cpp)
+add_executable(bench_global bench_global.cpp)
+target_link_libraries(bench_global PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_global PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# ONNX diagnostic
+add_executable(bench_diagnostic bench_diagnostic.cpp)
+target_link_libraries(bench_diagnostic PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_diagnostic PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+add_executable(baseline_bench baseline_bench.cpp)
+target_link_libraries(baseline_bench PRIVATE libembedding llama ggml)
+target_compile_definitions(baseline_bench PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Batch strategy comparison
+add_executable(bench_batch_strategy bench_batch_strategy.cpp)
+target_link_libraries(bench_batch_strategy PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_batch_strategy PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Quality benchmark (ONNX vs llama.cpp)
+add_executable(bench_quality bench_quality.cpp)
+target_link_libraries(bench_quality PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_quality PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# Bucketing benchmark for llama.cpp
+add_executable(bench_bucket_llamacpp bench_bucket_llamacpp.cpp)
+target_link_libraries(bench_bucket_llamacpp PRIVATE libembedding llama ggml)
+target_compile_definitions(bench_bucket_llamacpp PRIVATE
+    LIBEMBEDDING_IMPLEMENTATION
+)
+
+# llama.cpp headers needed for direct LlamaSession access
+set(_llama_h_dir "${CMAKE_BINARY_DIR}/_deps/llama.cpp-src/include")
+set(_ggml_h_dir "${CMAKE_BINARY_DIR}/_deps/llama.cpp-src/ggml/include")
+if(EXISTS "${_llama_h_dir}/llama.h")
+    foreach(_t bench_llamacpp quick_bench_llamacpp profile_bench_llamacpp inference_profile_llamacpp matrix_bench_llamacpp bench_bucket_llamacpp)
+        target_include_directories(${_t} PRIVATE "${_llama_h_dir}" "${_ggml_h_dir}")
+    endforeach()
+endif()
+endif()
+
 if(NOT WIN32 AND ONNXRuntime_LIBRARIES)
     set(_all_benchmarks
         bench_libembedding quick_bench bench_cached profile_bench detail_profile
