@@ -1,7 +1,15 @@
 # CHANGELOG
 
 
+## v1.5.5 (2026-09-05)
+
+
 ## v1.5.4 (2026-09-05)
+
+### Bug Fixes
+
+- Correct lembed_model_selection_t fields to double and remove duplicate
+  ([`9cacf39`](https://github.com/dorel14/libembedding/commit/9cacf392b9f517b34860bb10e731139d8fa1f9a4))
 
 
 ## v1.5.3 (2026-09-05)
