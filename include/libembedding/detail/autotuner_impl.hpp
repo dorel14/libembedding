@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/autotuner_impl.hpp
  * Auto-tuning implementation (orchestrator)
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -22,8 +25,6 @@ namespace lembed { namespace detail {
 /* =========================================================================
  * Unified Auto-Tuner Implementation
  * ========================================================================= */
-
-extern "C" {
 
 lembed_status_t lembed_autotune_unified(
     lembed_task_t task,
@@ -115,12 +116,29 @@ lembed_status_t lembed_autotune_unified_config(
             result->memory_mb = rerank_result.memory_mb;
             return LEMBED_OK;
         }
-        case LEMBED_TASK_EMBEDDING:
-            /* For embedding, use standard autotune (no latency budget concept yet) */
-            return lembed_autotune_unified(task, model_name, LEMBED_AUTOTUNE_QUICK, result);
-        case LEMBED_TASK_IMAGE:
-            /* For image, use image autotune (no latency budget concept yet) */
-            return lembed_autotune_unified(task, model_name, LEMBED_AUTOTUNE_QUICK, result);
+        case LEMBED_TASK_EMBEDDING: {
+            lembed_tuning_result_t emb_result = {0};
+            lembed_status_t s = lembed_autotune(model_name, LEMBED_AUTOTUNE_QUICK, &emb_result);
+            if (s != LEMBED_OK) return s;
+            result->threads = emb_result.threads;
+            result->batch_size = emb_result.batch_size;
+            result->workers = emb_result.workers;
+            result->throughput_docs_sec = emb_result.throughput_docs_sec;
+            result->latency_ms = emb_result.latency_ms;
+            result->memory_mb = emb_result.memory_mb;
+            return LEMBED_OK;
+        }
+        case LEMBED_TASK_IMAGE: {
+            lembed_image_tuning_result_t image_result = {0};
+            lembed_status_t s = lembed_image_autotune(model_name, LEMBED_AUTOTUNE_QUICK, &image_result);
+            if (s != LEMBED_OK) return s;
+            result->threads = image_result.threads;
+            result->batch_size = image_result.batch_size;
+            result->throughput_docs_sec = image_result.throughput_docs_sec;
+            result->latency_ms = image_result.latency_ms;
+            result->memory_mb = image_result.memory_mb;
+            return LEMBED_OK;
+        }
         case LEMBED_TASK_SPARSE:
             return LEMBED_ERROR_UNSUPPORTED;
         default:
@@ -141,12 +159,6 @@ void lembed_autotune_unified_clear_cache(lembed_task_t task, const char* model_n
             break;
     }
 }
-
-/* =========================================================================
- * Global scope wrappers
- * ========================================================================= */
-
-} /* extern "C" */
 
 }} /* namespace lembed::detail */
 

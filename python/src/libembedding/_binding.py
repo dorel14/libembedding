@@ -1,8 +1,13 @@
-"""Low-level cffi binding layer. Loads the shared library and exposes ffi/lib."""
+﻿"""Low-level cffi binding layer. Loads the shared library and exposes ffi/lib.
 
-import cffi
+Auteur: David Orel
+Version: 1.4.0
+"""
+
 import platform
 from pathlib import Path
+
+import cffi
 
 ffi = cffi.FFI()
 
@@ -17,9 +22,9 @@ def _find_library() -> str:
     pkg_dir = Path(__file__).parent
     candidates = [
         pkg_dir / f"libembedding{ext}",
-        pkg_dir / f"lib" / f"libembedding{ext}",
+        pkg_dir / "lib" / f"libembedding{ext}",
         # Development: look in build directory relative to project root
-        pkg_dir.parent.parent.parent.parent / "build" / f"python" / f"libembedding{ext}",
+        pkg_dir.parent.parent.parent.parent / "build" / "python" / f"libembedding{ext}",
         pkg_dir.parent.parent.parent.parent / "build" / f"libembedding{ext}",
     ]
     for c in candidates:
@@ -29,3 +34,4 @@ def _find_library() -> str:
 
 
 lib = ffi.dlopen(_find_library())
+

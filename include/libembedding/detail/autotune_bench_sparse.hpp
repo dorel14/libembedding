@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/autotune_bench_sparse.hpp
  * Sparse embedding auto-tuner
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -156,3 +159,7 @@ extern "C" lembed_status_t lembed_sparse_autotune(
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_AUTOTUNE_BENCH_SPARSE_HPP */
+
+
+
+

@@ -1,10 +1,15 @@
-"""Model name resolution and registry queries."""
+﻿"""Model name resolution and registry queries.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
+
+import os
 
 from ._binding import ffi, lib
 from ._status import check_status
-from .types import ModelInfo, ModelDesc
 from .exceptions import ModelNotFoundError
-import os
+from .types import ModelDesc, ModelInfo
 
 _PROVIDER_MAP = {
     "cpu": 0,
@@ -12,9 +17,13 @@ _PROVIDER_MAP = {
     "coreml": 2,
     "directml": 3,
     "tensorrt": 4,
+    "llama": 5,
+    "llamacpp": 5,
 }
 
 _PROVIDER_NAMES = {v: k for k, v in _PROVIDER_MAP.items()}
+# Prefer "llama" for provider value 5
+_PROVIDER_NAMES[5] = "llama"
 
 _POOLING_NAMES = {0: "cls", 1: "mean"}
 _POOLING_ENUM = {v: k for k, v in _POOLING_NAMES.items()}
@@ -124,5 +133,13 @@ def _desc_from_c(desc_ptr) -> ModelDesc:
 
 
 def _is_local_path(model_name: str) -> bool:
-    """True if the given string looks like an existing local directory path."""
+    """True if the given string looks like an existing local directory path or GGUF file."""
+    if model_name.endswith(".gguf"):
+        return os.path.isfile(model_name)
     return os.path.exists(model_name)
+
+
+def _is_gguf_model(model_name: str) -> bool:
+    """True if the model name looks like a GGUF file path."""
+    return model_name.endswith((".gguf", ".GGUF"))
+

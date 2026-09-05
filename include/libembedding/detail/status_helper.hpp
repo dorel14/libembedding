@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/status_helper.hpp
  * Common error handling helpers for C++ wrappers
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -26,3 +29,7 @@ inline void check_status(lembed_status_t status) {
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_STATUS_HELPER_HPP */
+
+
+
+

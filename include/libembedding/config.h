@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - C/C++ Embedding Library (header-only on Linux/macOS, shared lib/DLL on Windows)
  * config.h - Version and feature configuration
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -8,10 +11,10 @@
 #ifndef LIBEMBEDDING_CONFIG_H
 #define LIBEMBEDDING_CONFIG_H
 
-#define LIBEMBEDDING_VERSION_MAJOR 0
-#define LIBEMBEDDING_VERSION_MINOR 2
+#define LIBEMBEDDING_VERSION_MAJOR 1
+#define LIBEMBEDDING_VERSION_MINOR 4
 #define LIBEMBEDDING_VERSION_PATCH 0
-#define LIBEMBEDDING_VERSION_STRING "0.2.0"
+#define LIBEMBEDDING_VERSION_STRING "1.4.0"
 
 /* Feature toggles (can be defined before including headers) */
 
@@ -25,6 +28,7 @@
 #define LEMBED_DEFAULT_BATCH_SIZE    256
 #define LEMBED_DEFAULT_MAX_LENGTH    512
 #define LEMBED_DEFAULT_CACHE_SUBDIR  "libembedding_cache"
+#define LEMBED_MAX_DIM               4096
 
 /* Version string accessor (C API stable) */
 #ifdef __cplusplus
@@ -55,3 +59,7 @@ const char* lembed_version(void) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_CONFIG_H */
+
+
+
+

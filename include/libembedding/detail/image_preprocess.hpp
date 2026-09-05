@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/image_preprocess.hpp
  * Image preprocessing pipeline (resize, crop, normalize, HWC->CHW)
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -203,3 +206,7 @@ inline void preprocess_image_bytes_to_buffer(
 
 #endif /* LIBEMBEDDING_NO_IMAGE */
 #endif /* LIBEMBEDDING_DETAIL_IMAGE_PREPROCESS_HPP */
+
+
+
+

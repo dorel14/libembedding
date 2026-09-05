@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 cmake_policy(SET CMP0144 NEW)
 project(libembedding
-    VERSION 0.2.0
+    VERSION 1.4.0
     DESCRIPTION "C/C++ embedding library using ONNX Runtime (header-only INTERFACE on Linux/macOS, shared library/DLL on Windows)"
     LANGUAGES C CXX
 )
@@ -53,7 +53,7 @@ if(WIN32)
     endif()
     include_directories(${CURL_INCLUDE_DIR})
 
-    # 🟢 AJOUT CRUCIAL : Créer la cible manquante attendue par les tests et exemples
+    # ðŸŸ¢ AJOUT CRUCIAL : CrÃ©er la cible manquante attendue par les tests et exemples
     if(NOT TARGET ONNXRuntime::ONNXRuntime)
         add_library(ONNXRuntime::ONNXRuntime UNKNOWN IMPORTED)
         set_target_properties(ONNXRuntime::ONNXRuntime PROPERTIES
@@ -62,7 +62,7 @@ if(WIN32)
         )
     endif()
 
-    # Désactiver globalement les macros min/max conflictuelles de Windows
+    # DÃ©sactiver globalement les macros min/max conflictuelles de Windows
     add_compile_definitions(NOMINMAX)
 else()
     find_package(CURL REQUIRED)
@@ -92,14 +92,14 @@ set_target_properties(cjson PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # stb (bundled image loading/resizing, optional)
 if(NOT LIBEMBEDDING_NO_IMAGE)
-    add_library(stb STATIC
+    add_library(libembedding_stb STATIC
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb/stb_impl.c"
     )
-    target_include_directories(stb PUBLIC
+    target_include_directories(libembedding_stb PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
-    set_target_properties(stb PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    set_target_properties(libembedding_stb PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
 # libcurl (optional, for downloading)
@@ -107,24 +107,61 @@ if(NOT LIBEMBEDDING_NO_DOWNLOAD)
     find_package(CURL REQUIRED)
 endif()
 
+# =========================================================================
+# llama.cpp (always enabled, fetched via CMake FetchContent)
+# Must be declared BEFORE the main library target so that ggml/llama targets
+# are available when the install(EXPORT) is generated.
+# =========================================================================
+include(FetchContent)
+
+FetchContent_Declare(
+    llama.cpp
+    GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
+    GIT_TAG v0.3.0
+)
+set(FETCHCONTENT_QUIET OFF)
+set(FETCHCONTENT_BASE_DIR ${CMAKE_BINARY_DIR}/_deps)
+
+# llama.cpp options - must be set before FetchContent_MakeAvailable
+set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+set(LLAMA_STATIC ON CACHE BOOL "" FORCE)
+set(LLAMA_SHARED OFF CACHE BOOL "" FORCE)
+set(LLAMA_CUDA OFF CACHE BOOL "" FORCE)
+set(LLAMA_VULKAN OFF CACHE BOOL "" FORCE)
+set(LLAMA_METAL OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(llama.cpp)
 
 
 # =========================================================================
-# Main library target (Forcé en DLL SHARED pour Windows/Python cffi)
+# Main library target (ForcÃ© en DLL SHARED pour Windows/Python cffi)
 # =========================================================================
 if(WIN32)
-    # On crée une vraie DLL. Si un fichier cpp d'implémentation existe (ex: src/libembedding.cpp), 
-    # ajoutez-le ici à la place de ""
+    # On crÃ©e une vraie DLL. Si un fichier cpp d'implÃ©mentation existe (ex: src/libembedding.cpp),
+    # ajoutez-le ici Ã  la place de ""
     add_library(libembedding SHARED "${CMAKE_CURRENT_SOURCE_DIR}/python/csrc/libembedding_shlib.cpp")
 
     set_target_properties(libembedding PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
-    
-    # On force CMake à accepter une bibliothèque partagée sans fichiers sources initiaux 
+
+    # On force CMake Ã  accepter une bibliothÃ¨que partagÃ©e sans fichiers sources initiaux
     # car elle va lier ONNXRuntime et CURL
     set_target_properties(libembedding PROPERTIES LINKER_LANGUAGE CXX)
+
+    target_link_libraries(libembedding PUBLIC llama ggml)
+    target_include_directories(libembedding PUBLIC
+        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/ggml/include>
+    )
 else()
-    # On laisse la configuration d'origine pour Linux / macOS
+    # Header-only INTERFACE pour Linux / macOS
     add_library(libembedding INTERFACE)
+    target_link_libraries(libembedding INTERFACE llama ggml)
+    target_include_directories(libembedding INTERFACE
+        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${llama.cpp_SOURCE_DIR}/ggml/include>
+    )
 endif()
 
 add_library(libembedding::libembedding ALIAS libembedding)
@@ -138,16 +175,16 @@ add_library(libembedding::libembedding ALIAS libembedding)
 # To use LTCG, provide an explicit .def file instead.
 if(MSVC)
     target_compile_options(libembedding PRIVATE
-        /O2       # Maximize speed
-        /Oi       # Favor fast code (intrinsics)
-        /Ot       # Favor fast over small code
-        /fp:fast  # Fast floating-point model
+        $<$<CONFIG:Release>:/O2>
+        $<$<CONFIG:Release>:/Oi>
+        $<$<CONFIG:Release>:/Ot>
+        $<$<CONFIG:Release>:/fp:fast>
+        $<$<CONFIG:Release>:/arch:AVX2>
+        $<$<CONFIG:RelWithDebInfo>:/arch:AVX2>
     )
-    # AVX2 for Ice Lake and newer (safe baseline for modern x86)
-    target_compile_options(libembedding PRIVATE /arch:AVX2)
-    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR NOT CMAKE_BUILD_TYPE)
-        target_compile_definitions(libembedding PRIVATE NDEBUG)
-    endif()
+    target_compile_definitions(libembedding PRIVATE
+        $<$<CONFIG:Release>:NDEBUG>
+    )
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(libembedding INTERFACE
         -O3
@@ -164,7 +201,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 # =========================================================================
-# Configuration des Inclusions et Liaisons (Adaptée Windows/DLL)
+# Configuration des Inclusions et Liaisons (AdaptÃ©e Windows/DLL)
 # =========================================================================
 if(WIN32)
     # Mode DLL (SHARED) pour Windows
@@ -179,8 +216,8 @@ if(WIN32)
         cjson
     )
 
-    if(NOT LIBEMBEDDING_NO_IMAGE)
-        target_link_libraries(libembedding PUBLIC stb)
+if(NOT LIBEMBEDDING_NO_IMAGE)
+        target_link_libraries(libembedding PUBLIC libembedding_stb)
     endif()
 
     if(NOT LIBEMBEDDING_NO_DOWNLOAD)
@@ -226,19 +263,13 @@ endif()
 if(WIN32)
     set(_LEMBED_ONNX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib")
     function(copy_runtime_dlls target_name)
+        set(_dll_names "")
+        set(_dll_dirs "")
+
         # ONNX Runtime DLLs
-        set(_dll_dirs
-            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib"
-        )
-        set(_dll_names
-            onnxruntime.dll
-            onnxruntime_providers_shared.dll
-        )
-        # Also copy libembedding.dll if it exists in build output
-        set(_lib_dir "${CMAKE_BINARY_DIR}/$<CONFIG>")
-        if(EXISTS "${_lib_dir}/libembedding.dll")
-            list(APPEND _dll_names libembedding.dll)
-        endif()
+        list(APPEND _dll_names onnxruntime.dll)
+        list(APPEND _dll_names onnxruntime_providers_shared.dll)
+        list(APPEND _dll_dirs "${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime/lib")
 
         # Curl DLL
         if(DEFINED CURL_LIBRARY)
@@ -250,6 +281,26 @@ if(WIN32)
                 list(APPEND _dll_names libcurl.dll)
             endif()
         endif()
+
+        # llama.cpp runtime DLLs (from build output)
+        foreach(_cfg Release Debug RelWithDebInfo MinSizeRel)
+            set(_candidate_dir "${CMAKE_BINARY_DIR}/bin/${_cfg}")
+            if(EXISTS "${_candidate_dir}/llama.dll")
+                list(APPEND _dll_dirs "${_candidate_dir}")
+                list(APPEND _dll_names llama.dll ggml.dll ggml-cpu.dll ggml-base.dll)
+                break()
+            endif()
+        endforeach()
+
+        # libembedding.dll from build output
+        foreach(_cfg Release Debug RelWithDebInfo MinSizeRel)
+            set(_candidate_dir "${CMAKE_BINARY_DIR}/${_cfg}")
+            if(EXISTS "${_candidate_dir}/libembedding.dll")
+                list(APPEND _dll_dirs "${_candidate_dir}")
+                list(APPEND _dll_names libembedding.dll)
+                break()
+            endif()
+        endforeach()
 
         foreach(_dll ${_dll_names})
             foreach(_dir ${_dll_dirs})
@@ -376,15 +427,12 @@ install(DIRECTORY third_party/
 )
 
 set(_install_targets libembedding cjson)
-if(NOT LIBEMBEDDING_NO_IMAGE AND TARGET stb)
-    list(APPEND _install_targets stb)
+if(NOT LIBEMBEDDING_NO_IMAGE AND TARGET libembedding_stb)
+    list(APPEND _install_targets libembedding_stb)
 endif()
 install(TARGETS ${_install_targets}
     EXPORT libembedding-targets
 )
 
-install(EXPORT libembedding-targets
-    FILE libembeddingConfig.cmake
-    NAMESPACE libembedding::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libembedding
-)
+
+

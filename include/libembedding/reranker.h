@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - reranker.h
  * Cross-encoder reranker C API
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -324,3 +327,7 @@ void lembed_reranker_free(lembed_reranker_t* ctx) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_RERANKER_H */
+
+
+
+

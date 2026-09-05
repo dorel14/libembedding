@@ -1,4 +1,4 @@
-/*
+﻿/*
  * libembedding - detail/tokenizer_impl.hpp
  * Built-in HuggingFace tokenizer.json parser (WordPiece + BPE)
  * No external Rust/tokenizers-cpp dependency required.
@@ -6,6 +6,9 @@
  * Supports the tokenizer types used by embedding models in the registry:
  * - WordPiece (BERT-style: bge, MiniLM, mpnet, etc.)
  * - BPE (GPT/Sentencepiece-style: nomic, jina, CLIP, etc.)
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -62,14 +65,14 @@ static inline std::vector<std::string> basic_tokenize(const std::string& text) {
             i++;
         } else if ((c >= '!' && c <= '/') || (c >= ':' && c <= '@') ||
                    (c >= '[' && c <= '`') || (c >= '{' && c <= '~')) {
-            /* punctuation — separate token */
+            /* punctuation â€” separate token */
             if (!current.empty()) { tokens.push_back(current); current.clear(); }
             current += (char)c;
             tokens.push_back(current);
             current.clear();
             i++;
         } else if (c >= 0x80) {
-            /* multi-byte UTF-8 — keep as single token */
+            /* multi-byte UTF-8 â€” keep as single token */
             if (!current.empty()) { tokens.push_back(current); current.clear(); }
             int bytes = 1;
             if ((c & 0xE0) == 0xC0) bytes = 2;
@@ -277,6 +280,11 @@ public:
         return result;
     }
 
+    /* Public: encode a single text to token IDs (for length bucketing) */
+    std::vector<int> encode(const std::string& text) const {
+        return encode_single(text);
+    }
+
     int max_length() const { return max_length_; }
     void set_pad_token_id(int id) { pad_token_id_ = id; }
 
@@ -369,7 +377,7 @@ private:
                 end--;
             }
             if (!found) {
-                /* Character not in vocab — use [UNK] for entire word */
+                /* Character not in vocab â€” use [UNK] for entire word */
                 if (!found_any) ids.push_back(unk_token_id_);
                 return;
             }
@@ -431,3 +439,7 @@ private:
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_TOKENIZER_IMPL_HPP */
+
+
+
+

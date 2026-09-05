@@ -96,12 +96,12 @@ for m in libembedding.list_text_models():
 
 ## API Reference
 
-### TextEmbedding
+### Provider
 
 ```python
 TextEmbedding(
     model_name="BAAI/bge-small-en-v1.5",  # HuggingFace model name, repo code, or local dir path
-    provider="cpu",                         # "cpu", "cuda", "coreml", "directml", "tensorrt"
+    provider="cpu",                         # "cpu", "cuda", "coreml", "directml", "tensorrt", "llamacpp"
     device_id=0,
     cache_dir=None,                         # None = ~/.cache/libembedding
     max_length=0,                           # 0 = model default
@@ -125,6 +125,8 @@ TextEmbedding(
 | `max_length()` | `int` | Max token length for the model |
 | `stats()` | `Stats` | Runtime statistics (texts, batches, latency) |
 | `close()` | `None` | Release resources |
+| `from_gguf(repo, filename=None, provider="llamacpp", ...)` | `TextEmbedding` | Load a GGUF model from HuggingFace (requires llama.cpp build) |
+| `supports_llamacpp()` | `bool` | (static) Check if llama.cpp backend is available |
 
 ### SparseTextEmbedding
 
@@ -225,7 +227,7 @@ with TextEmbedding("BAAI/bge-small-en-v1.5") as model:
 | `pooling` | `str` | "cls" or "mean" |
 | `num_threads` | `int` | Threads configured |
 | `batch_size` | `int` | Batch size configured |
-| `provider` | `str` | Execution provider ("cpu", "cuda", "directml", "coreml") |
+| `provider` | `str` | Execution provider ("cpu", "cuda", "directml", "coreml", "llamacpp") |
 | `device_id` | `int` | Device ID |
 
 **`Stats`** — runtime statistics (returned by `stats()`):
@@ -249,11 +251,13 @@ model = TextEmbedding("/path/to/model_dir")
 
 **44 text models** including BGE, MiniLM, Nomic, E5, CLIP, Jina, GTE, Snowflake, ModernBERT (with quantized variants).
 
-**5 image models** including CLIP ViT-B/32, ResNet-50, Unicom, Nomic Vision.
+**6 image models** including CLIP ViT-B/32 (FP32 + INT8 quantized), ResNet-50, Unicom, Nomic Vision.
 
 **2 sparse models**: SPLADE++, BGE-M3.
 
-**4 reranker models**: BGE Reranker, Jina Reranker.
+**5 reranker models**: BGE Reranker, Jina Reranker (including INT8 quantized variant).
+
+**GGUF/llama.cpp models**: Run quantized GGUF models (Q4_K_M, Q8_0) via the llama.cpp backend.
 
 ## Benchmarks
 
@@ -265,6 +269,69 @@ Measured on Apple M-series with `all-MiniLM-L6-v2` (384-dim). Median of 10 runs.
 | Batch 8 (texts/sec)      | **641**     | 92        | **7.0x**|
 | Batch 32 (texts/sec)     | **581**     | 89        | **6.5x**|
 | Peak RSS (MB)            | **567**     | 1,981     | **3.5x less**|
+
+### Unified Auto-Tuning
+
+Auto-tune threads, batch_size, and workers for any task type:
+
+```python
+from libembedding import (
+    autotune,
+    autotune_unified,
+    LEMBED_TASK_RERANKING,
+    LEMBED_AUTOTUNE_QUICK,
+    LEMBED_AUTOTUNE_FULL,
+)
+
+# Quick text embedding tune (5-15s)
+result = autotune("BAAI/bge-small-en-v1.5", LEMBED_AUTOTUNE_QUICK)
+
+# Unified API for any task type
+result = autotune_unified(
+    task=LEMBED_TASK_RERANKING,
+    model_name="BAAI/bge-reranker-base",
+    mode=LEMBED_AUTOTUNE_QUICK,
+)
+```
+
+Results are cached by hardware fingerprint — subsequent runs load instantly.
+
+### Error Handling
+
+```python
+from libembedding import LembedError, LlamaError
+from libembedding.exceptions import (
+    ModelNotFoundError,
+    OnnxRuntimeError,
+    DownloadError,
+)
+
+try:
+    model = TextEmbedding("nonexistent/model")
+except ModelNotFoundError as e:
+    print(f"Model not found: {e.detail}")
+except LlamaError as e:
+    print(f"llama.cpp error: {e.detail}")
+except LembedError as e:
+    print(f"Error [{e.status_code}]: {e.message}")
+```
+
+### GGUF Models (llama.cpp)
+
+Load quantized GGUF models:
+
+```python
+from libembedding import TextEmbedding
+
+# Check llama.cpp availability
+if TextEmbedding.supports_llamacpp():
+    model = TextEmbedding.from_gguf(
+        repo="Xenova/all-MiniLM-L6-v2-GGUF",
+        filename="all-MiniLM-L6-v2-Q4_K_M.gguf",
+        provider="llamacpp",
+    )
+    embeddings = model.embed(["Hello world"])
+```
 
 ## Configuration
 
@@ -294,7 +361,7 @@ cd python/
 python -m build
 ```
 
-This produces files in `dist/` (versions follow the `libembedding-ng` package, e.g. `1.1.1`):
+This produces files in `dist/` (versions follow the `libembedding-ng` package, e.g. `1.4.0`):
 ```
 dist/
   libembedding_ng-1.1.1.tar.gz                                # source distribution

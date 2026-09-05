@@ -1,17 +1,22 @@
-"""Status code checking — raises Python exceptions from C status codes."""
+﻿"""Status code checking â€” raises Python exceptions from C status codes.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
 
 from ._binding import ffi, lib
 from .exceptions import (
-    LembedError,
-    InvalidArgumentError,
-    OutOfMemoryError,
-    OnnxRuntimeError,
-    TokenizerError,
-    DownloadError,
-    IOError,
-    ModelNotFoundError,
-    UnsupportedError,
     BatchSizeError,
+    DownloadError,
+    InvalidArgumentError,
+    IOError,
+    LembedError,
+    LlamaError,
+    ModelNotFoundError,
+    OnnxRuntimeError,
+    OutOfMemoryError,
+    TokenizerError,
+    UnsupportedError,
 )
 
 _STATUS_MAP = {
@@ -24,6 +29,7 @@ _STATUS_MAP = {
     7: ModelNotFoundError,
     8: UnsupportedError,
     9: BatchSizeError,
+    10: LlamaError,
 }
 
 
@@ -34,3 +40,5 @@ def check_status(status: int) -> None:
     detail = ffi.string(lib.lembed_last_error()).decode("utf-8", errors="replace")
     exc_cls = _STATUS_MAP.get(status, LembedError)
     raise exc_cls(status, msg, detail)
+
+

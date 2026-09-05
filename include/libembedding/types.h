@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - C/C++ Embedding Library (header-only on Linux/macOS, shared lib/DLL on Windows)
  * types.h - Core types, opaque handles, enums, output structures
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -28,7 +31,18 @@ typedef enum {
     LEMBED_PROVIDER_COREML,
     LEMBED_PROVIDER_DIRECTML,
     LEMBED_PROVIDER_TENSORRT,
+    LEMBED_PROVIDER_LLAMACPP,
 } lembed_execution_provider_t;
+
+/* =========================================================================
+ * Backend Type (auto-detected or explicit)
+ * ========================================================================= */
+
+typedef enum {
+    LEMBED_BACKEND_ONNX = 0,
+    LEMBED_BACKEND_LLAMACPP,
+    LEMBED_BACKEND_AUTO,       /* Auto-detect based on model path/name */
+} lembed_backend_t;
 
 /* =========================================================================
  * Pooling Strategy
@@ -248,7 +262,25 @@ typedef struct {
     int                         offline;      /* 1 = skip downloads, use cache only */
     int                         pooling;      /* lembed_pooling_t, for local models without config.json */
     int                         dim;          /* embedding dim, for local models without config.json */
+    /* llama.cpp specific options */
+    int                         llama_n_ctx;  /* context size (0 = model default) */
+    int                         llama_n_gpu_layers; /* GPU layers for llama.cpp (-1 = all, 0 = CPU) */
+    int                         llama_verbose; /* 1 = enable llama.cpp logging */
+    int                         llama_n_batch; /* max tokens per llama_encode() (0 = model default) */
+    int                         auto_workers;   /* 1 = auto-detect optimal workers/sessions */
+    int                         cache_size;     /* 0 = disabled, >0 = LRU cache capacity */
+    /* Backend selection */
+    int                         backend;       /* lembed_backend_t: ONNX, LLAMACPP, or AUTO */
+    /* ONNX batching strategy */
+    int                         batch_strategy; /* lembed_batch_strategy_t (ONNX only) */
 } lembed_text_options_t;
+
+/* Batching strategy for ONNX backend */
+typedef enum {
+    LEMBED_BATCH_SEQUENTIAL = 0,    /* One text at a time (no batching) */
+    LEMBED_BATCH_FIXED = 1,         /* Fixed-size batches (naive, may pad heavily) */
+    LEMBED_BATCH_LENGTH_BUCKET = 2, /* Sort by length, then batch (minimizes padding) */
+} lembed_batch_strategy_t;
 
 typedef struct {
     lembed_sparse_model_t       model;
@@ -334,6 +366,11 @@ lembed_text_options_t lembed_text_options_default(void) {
     opts.show_download_progress = 1;
     opts.batch_size = LEMBED_DEFAULT_BATCH_SIZE;
     opts.pooling = LEMBED_POOLING_MEAN;
+    opts.llama_n_gpu_layers = 0;
+    opts.batch_strategy = LEMBED_BATCH_LENGTH_BUCKET;
+    opts.backend = LEMBED_BACKEND_AUTO;  /* Auto-detect backend by default */
+    opts.auto_workers = 0;                /* Manual worker count by default */
+    opts.cache_size = 0;                  /* No cache by default */
     return opts;
 }
 
@@ -404,3 +441,7 @@ void lembed_rerank_results_free(lembed_rerank_results_t* result) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_TYPES_H */
+
+
+
+

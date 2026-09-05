@@ -1,4 +1,8 @@
-"""Exception hierarchy mapped from lembed_status_t."""
+﻿"""Exception hierarchy mapped from lembed_status_t.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
 
 
 class LembedError(Exception):
@@ -45,3 +49,8 @@ class UnsupportedError(LembedError):
 
 class BatchSizeError(LembedError):
     pass
+
+
+class LlamaError(LembedError):
+    pass
+

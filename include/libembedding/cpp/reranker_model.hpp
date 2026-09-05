@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - cpp/reranker_model.hpp
  * C++ wrapper for document reranking.
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -166,3 +169,7 @@ private:
 } /* namespace lembed */
 
 #endif /* LIBEMBEDDING_CPP_RERANKER_MODEL_HPP */
+
+
+
+

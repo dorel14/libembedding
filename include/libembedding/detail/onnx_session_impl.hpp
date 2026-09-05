@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -24,13 +25,6 @@
 namespace lembed { namespace detail {
 
 /* RAII helper to release ORT objects */
-template<typename T>
-struct OrtRelease {
-    const OrtApi* api;
-    void operator()(T* p) const {
-        if (p) api->ReleaseValue(reinterpret_cast<OrtValue*>(p));
-    }
-};
 
 /* Singleton ORT environment */
 inline const OrtApi* ort_api() {
@@ -39,7 +33,8 @@ inline const OrtApi* ort_api() {
 
 inline OrtEnv* ort_env() {
     static OrtEnv* env = nullptr;
-    if (!env) {
+    static std::once_flag flag;
+    std::call_once(flag, []() {
         const OrtApi* api = ort_api();
         OrtStatus* status = api->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "libembedding", &env);
         if (status) {
@@ -48,7 +43,7 @@ inline OrtEnv* ort_env() {
             api->ReleaseStatus(status);
             throw std::runtime_error(err);
         }
-    }
+    });
     return env;
 }
 
@@ -104,12 +99,14 @@ public:
         configure_provider(api, opts, provider);
 
         #if defined(_WIN32) || defined(WIN32)
-            // Conversion du chemin char* (UTF-8) vers wchar_t* (UTF-16) pour l'API Windows
-            std::string path_str(model_path);
-            std::wstring path_w(path_str.begin(), path_str.end());
+            std::wstring path_w;
+            int n = MultiByteToWideChar(CP_UTF8, 0, model_path, -1, NULL, 0);
+            if (n > 0) {
+                path_w.resize(n);
+                MultiByteToWideChar(CP_UTF8, 0, model_path, -1, path_w.data(), n);
+            }
             ort_check(api->CreateSession(ort_env(), path_w.c_str(), opts, &session_));
         #else
-        // Code d'origine pour Linux / macOS
             ort_check(api->CreateSession(ort_env(), model_path, opts, &session_));
         #endif
         api->ReleaseSessionOptions(opts);

@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/autotune_bench_image.hpp
  * Image embedding auto-tuner
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -174,3 +177,7 @@ extern "C" lembed_status_t lembed_image_autotune(
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_AUTOTUNE_BENCH_IMAGE_HPP */
+
+
+
+

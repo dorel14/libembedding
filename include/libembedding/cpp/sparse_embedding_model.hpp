@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - cpp/sparse_embedding_model.hpp
  * C++ wrapper for sparse text embedding.
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -157,3 +160,7 @@ private:
 } /* namespace lembed */
 
 #endif /* LIBEMBEDDING_CPP_SPARSE_EMBEDDING_MODEL_HPP */
+
+
+
+

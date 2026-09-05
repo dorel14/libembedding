@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/normalize.hpp
  * L2 normalization for embedding vectors
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -32,3 +35,7 @@ inline void l2_normalize(float* vectors, int count, int dim) {
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_NORMALIZE_HPP */
+
+
+
+

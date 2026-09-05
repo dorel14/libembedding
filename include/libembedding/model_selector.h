@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - model_selector.h
  * Automatic model selection based on hardware and use case
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -39,7 +42,11 @@ int lembed_model_select(
     lembed_model_candidate_t* out_selected
 );
 
-/* Detect hardware capabilities */
+/* =========================================================================
+ * DEPRECATED: Use lembed_cache_hardware_info_t / lembed_cache_detect_hardware()
+ * from autotune_cache.h instead. This legacy struct is kept for backward
+ * compatibility but may be removed in a future major release.
+ * ========================================================================= */
 typedef struct {
     char cpu_model[256];
     int physical_cores;
@@ -52,5 +59,22 @@ int lembed_detect_hardware(lembed_hardware_info_t* out_info);
 #ifdef __cplusplus
 }
 #endif
+
+/* ---- Implementation ---- */
+#ifdef LIBEMBEDDING_IMPLEMENTATION
+#include "autotune_cache.h"
+
+int lembed_detect_hardware(lembed_hardware_info_t* out_info) {
+    if (!out_info) return 0;
+    lembed_cache_hardware_info_t hw = {0};
+    if (lembed_cache_detect_hardware(&hw) != LEMBED_OK) return 0;
+    memset(out_info, 0, sizeof(*out_info));
+    memcpy(out_info->cpu_model, hw.cpu_name, sizeof(out_info->cpu_model) - 1);
+    out_info->physical_cores = hw.physical_cores;
+    out_info->logical_cores = hw.logical_cores;
+    out_info->ram_mb = hw.ram_mb;
+    return hw.logical_cores;
+}
+#endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_MODEL_SELECTOR_H */

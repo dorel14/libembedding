@@ -1,4 +1,8 @@
-"""High-level sparse text embedding API."""
+﻿"""High-level sparse text embedding API.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
 
 from __future__ import annotations
 
@@ -8,15 +12,15 @@ import numpy as np
 
 from ._binding import ffi, lib
 from ._status import check_status
+from .exceptions import ModelNotFoundError
 from .models import (
-    resolve_sparse_model,
-    list_sparse_models,
     _PROVIDER_MAP,
     _desc_from_c,
     _is_local_path,
+    list_sparse_models,
+    resolve_sparse_model,
 )
-from .types import SparseEmbedding, ModelDesc, Stats, SparseTuningResult
-from .exceptions import ModelNotFoundError
+from .types import ModelDesc, SparseEmbedding, SparseTuningResult, Stats
 
 
 class SparseTextEmbedding:
@@ -174,7 +178,7 @@ def sparse_autotune(
     model_name: str = "prithivida/Splade_PP_en_v1",
     *,
     full: bool = False,
-) -> "SparseTuningResult":
+) -> SparseTuningResult:
     """Run auto-tuning to find optimal sparse embedding configuration.
 
     Args:
@@ -211,3 +215,4 @@ def sparse_autotune(
         latency_ms=result.latency_ms,
         memory_mb=result.memory_mb,
     )
+

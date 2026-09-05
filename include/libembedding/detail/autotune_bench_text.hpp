@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/autotune_bench_text.hpp
  * Text embedding auto-tuner
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -267,3 +270,7 @@ inline lembed_status_t autotune_text_impl(
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_AUTOTUNE_BENCH_TEXT_HPP */
+
+
+
+

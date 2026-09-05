@@ -1,4 +1,8 @@
-"""High-level document reranker API."""
+﻿"""High-level document reranker API.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
 
 from __future__ import annotations
 
@@ -6,15 +10,15 @@ import warnings
 
 from ._binding import ffi, lib
 from ._status import check_status
+from .exceptions import ModelNotFoundError
 from .models import (
-    resolve_reranker_model,
-    list_reranker_models,
     _PROVIDER_MAP,
     _desc_from_c,
     _is_local_path,
+    list_reranker_models,
+    resolve_reranker_model,
 )
-from .types import RerankResult, ModelDesc, Stats, RerankerTuningResult
-from .exceptions import ModelNotFoundError
+from .types import ModelDesc, RerankerTuningResult, RerankResult, Stats
 
 
 class Reranker:
@@ -90,10 +94,10 @@ class Reranker:
         return list_reranker_models()
 
     @staticmethod
-    def auto(profile: str = "balanced", **kwargs) -> "Reranker":
+    def auto(profile: str = "balanced", **kwargs) -> Reranker:
         """Create a Reranker with automatic configuration based on profile.
 
-        This is the recommended way to create a Reranker — it automatically
+        This is the recommended way to create a Reranker â€” it automatically
         selects the optimal model and configuration for your hardware.
 
         Args:
@@ -183,7 +187,7 @@ def reranker_autotune(
     *,
     full: bool = False,
     objective: str = "balanced",
-) -> "RerankerTuningResult":
+) -> RerankerTuningResult:
     """Run auto-tuning to find optimal reranker configuration.
 
     Args:
@@ -242,7 +246,7 @@ def reranker_autotune_constrained(
     objective: str = "balanced",
     min_tokens: int = 64,
     max_latency_ms: float = 500.0,
-) -> "RerankerTuningResult":
+) -> RerankerTuningResult:
     """Run auto-tuning with quality constraints.
 
     Args:
@@ -300,7 +304,7 @@ def reranker_autotune_constrained(
 def reranker_auto_config(
     model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
     target_latency_ms: float = 500.0,
-) -> "RerankerTuningResult":
+) -> RerankerTuningResult:
     """Auto-configure reranker to fit within a latency budget.
 
     Args:
@@ -341,7 +345,7 @@ def reranker_auto_config(
     )
 
 
-def clear_reranker_autotune_cache(model_name: str = None) -> None:
+def clear_reranker_autotune_cache(model_name: str | None = None) -> None:
     """Clear reranker autotune cache for a model (or all models if None)."""
     lib.lembed_reranker_autotune_clear_cache(
         model_name.encode("utf-8") if model_name else ffi.NULL
@@ -351,7 +355,7 @@ def clear_reranker_autotune_cache(model_name: str = None) -> None:
 def reranker_auto_config_profile(
     profile: str = "balanced",
     model_name: str = "jinaai/jina-reranker-v1-turbo-en-quantized",
-) -> "RerankerTuningResult":
+) -> RerankerTuningResult:
     """Auto-configure reranker using a profile.
 
     Args:
@@ -391,10 +395,10 @@ def reranker_auto_config_profile(
 def Reranker_auto(
     profile: str = "balanced",
     **kwargs,
-) -> "Reranker":
+) -> Reranker:
     """Create a Reranker with automatic configuration based on profile.
 
-    This is the recommended way to create a Reranker — it automatically
+    This is the recommended way to create a Reranker â€” it automatically
     selects the optimal model and configuration for your hardware.
 
     Args:
@@ -433,3 +437,4 @@ def Reranker_auto(
         max_length=config.max_tokens,
         **kwargs,
     )
+

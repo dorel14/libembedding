@@ -1,4 +1,8 @@
-"""High-level image embedding API."""
+﻿"""High-level image embedding API.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
 
 from __future__ import annotations
 
@@ -8,15 +12,15 @@ import numpy as np
 
 from ._binding import ffi, lib
 from ._status import check_status
+from .exceptions import ModelNotFoundError
 from .models import (
-    resolve_image_model,
-    list_image_models,
     _PROVIDER_MAP,
     _desc_from_c,
     _is_local_path,
+    list_image_models,
+    resolve_image_model,
 )
-from .types import ModelDesc, Stats, ImageTuningResult
-from .exceptions import ModelNotFoundError
+from .types import ImageTuningResult, ModelDesc, Stats
 
 
 class ImageEmbedding:
@@ -201,7 +205,7 @@ def image_autotune(
     model_name: str = "openai/clip-vit-base-patch32-quantized",
     *,
     full: bool = False,
-) -> "ImageTuningResult":
+) -> ImageTuningResult:
     """Run auto-tuning to find optimal image embedding configuration.
 
     Args:
@@ -235,3 +239,4 @@ def image_autotune(
         latency_ms=result.latency_ms,
         memory_mb=result.memory_mb,
     )
+

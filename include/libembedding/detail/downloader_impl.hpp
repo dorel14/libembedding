@@ -163,10 +163,10 @@ inline bool download_hf_file(const std::string& repo, const std::string& filenam
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "libembedding/0.1.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "libembedding/" LIBEMBEDDING_VERSION_STRING);
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
 
-    ProgressData pd = { progress_fn, progress_userdata };
+    static ProgressData pd = { progress_fn, progress_userdata };
     if (progress_fn) {
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &pd);
@@ -290,3 +290,4 @@ inline std::string ensure_model(const std::string& repo_code,
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_DOWNLOADER_IMPL_HPP */
+

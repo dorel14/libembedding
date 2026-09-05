@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - autotuner.h
  * Auto-tuning for optimal embedding performance
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -106,7 +109,7 @@ typedef enum {
 } lembed_reranker_profile_t;
 
 /* Run auto-tuning for a reranker model
- * Optimizes threads × batch_size × max_tokens for the given objective.
+ * Optimizes threads Ã— batch_size Ã— max_tokens for the given objective.
  * mode: QUICK (5-15s) or FULL (30-120s)
  * objective: what to optimize for
  * result: output configuration
@@ -250,7 +253,7 @@ typedef struct {
 } lembed_image_tuning_result_t;
 
 /* Run auto-tuning for an image embedding model
- * Optimizes threads × batch_size for throughput */
+ * Optimizes threads Ã— batch_size for throughput */
 lembed_status_t lembed_image_autotune(
     const char* model_name,
     lembed_autotune_mode_t mode,
@@ -261,3 +264,7 @@ lembed_status_t lembed_image_autotune(
 #endif
 
 #endif /* LIBEMBEDDING_AUTOTUNER_H */
+
+
+
+

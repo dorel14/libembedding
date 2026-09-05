@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - image_embedding.h
  * Image embedding C API
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -389,3 +392,7 @@ void lembed_image_embedding_free(lembed_image_embedding_t* ctx) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_IMAGE_EMBEDDING_H */
+
+
+
+

@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - similarity.h
  * Native similarity functions: cosine, dot product, euclidean distance
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -79,3 +82,7 @@ float lembed_euclidean_distance(const float* a, const float* b, int dim) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_SIMILARITY_H */
+
+
+
+

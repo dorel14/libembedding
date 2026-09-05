@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/batch.hpp
  * Batch iteration utility
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -40,3 +43,7 @@ inline BatchRange get_batch(int index, int total, int batch_size) {
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_BATCH_HPP */
+
+
+
+

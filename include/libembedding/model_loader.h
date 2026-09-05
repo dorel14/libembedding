@@ -1,9 +1,12 @@
-/*
+﻿/*
  * libembedding - model_loader.h
  * Local model loading from directory paths (create_from_path API)
  *
  * Convention: dir_path contains model.onnx, tokenizer.json, and optionally
  * config.json for metadata.
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -113,3 +116,7 @@ inline lembed_pooling_t infer_pooling_from_path(const std::string& path) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_MODEL_LOADER_H */
+
+
+
+

@@ -1,6 +1,11 @@
-"""Data types for libembedding results."""
+﻿"""Data types for libembedding results.
+
+Auteur: David Orel
+Version: 1.4.0
+"""
 
 from dataclasses import dataclass
+
 import numpy as np
 
 
@@ -123,21 +128,6 @@ class UnifiedTuningResult:
 
 
 @dataclass(frozen=True)
-class UnifiedTuningResult:
-    """Result of unified auto-tuning for any task type."""
-
-    task: str
-    threads: int
-    batch_size: int
-    workers: int
-    max_tokens: int
-    throughput_docs_sec: float
-    latency_ms: float
-    p95_latency_ms: float
-    memory_mb: float
-
-
-@dataclass(frozen=True)
 class ModelSelectionResult:
     """Result of automatic model selection."""
 
@@ -151,3 +141,4 @@ class ModelSelectionResult:
     latency_ms: float
     memory_mb: float
     score: float
+

@@ -88,7 +88,7 @@ int main(void) {
             };
 
             lembed_sparse_embeddings_t result = {0};
-            s = lembed_sparse_text_embedding_embed(embedder, texts, 2, 0, &result);
+            s = lembed_sparse_text_embedding_embed(embedder, texts, 2, 0, &opts, &result);
             if (s == LEMBED_OK) {
                 for (int i = 0; i < result.count; i++) {
                     printf("Text %d: %d non-zero dimensions\n",

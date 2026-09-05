@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - detail/autotune_bench_reranker.hpp
  * Reranker auto-tuner
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -19,7 +22,7 @@
 namespace lembed { namespace detail {
 
 /* Forward declarations */
-lembed_status_t lembed_reranker_autotune_impl(
+static lembed_status_t lembed_reranker_autotune_impl(
     const char* model_name,
     lembed_autotune_mode_t mode,
     lembed_objective_t objective,
@@ -120,7 +123,7 @@ inline lembed_reranker_tuning_result_t bench_reranker_config(
     /* Generate synthetic documents */
     std::vector<std::string> docs;
     for (int i = 0; i < n_docs; i++) {
-        docs.push_back(generate_synthetic_doc(max_tokens, i * 7));
+        docs.push_back(generate_synthetic_doc(max_tokens, i + max_tokens));
     }
     const char* query = "What is deep learning?";
 
@@ -450,3 +453,7 @@ inline void lembed_reranker_autotune_clear_cache(const char* model_name) {
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_DETAIL_AUTOTUNE_BENCH_RERANKER_HPP */
+
+
+
+

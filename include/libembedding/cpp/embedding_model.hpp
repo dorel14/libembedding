@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - cpp/embedding_model.hpp
- * C++ wrapper for dense text embedding.
+ * C++ wrapper for dense text embedding (ONNX backend).
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -20,21 +23,7 @@
 
 namespace lembed {
 
-struct EmbeddingOptions {
-    std::string                  model_path;              /* HF name or local dir path */
-    int                          threads = 0;
-    int                          batch_size = LEMBED_DEFAULT_BATCH_SIZE;
-    bool                         offline = false;
-    std::string                  cache_dir;
-    std::string                  provider = "cpu";
-    int                          device_id = 0;
-    int                          max_length = 0;
-    bool                         show_download_progress = true;
-    lembed_pooling_t             pooling = LEMBED_POOLING_MEAN;
-    int                          dim = 0;
-};
-
-class EmbeddingModel {
+class EmbeddingModel : public EmbeddingProvider {
 public:
     EmbeddingModel(const std::string& model, const EmbeddingOptions& opts = {}) {
         lembed_text_options_t c_opts = lembed_text_options_default();
@@ -89,7 +78,7 @@ public:
     }
 
     std::vector<std::vector<float>> embed(const std::vector<std::string>& texts,
-                                          int batch_size = 0) {
+                                          int batch_size = 0) override {
         if (texts.empty()) return {};
 
         std::vector<const char*> c_texts;
@@ -116,7 +105,7 @@ public:
         return embeddings;
     }
 
-    int dimension() const {
+    int dimension() const override {
         return ctx_ ? lembed_text_embedding_dim(ctx_) : 0;
     }
 
@@ -129,7 +118,7 @@ public:
         return d;
     }
 
-    std::string name() const {
+    std::string name() const override {
         if (!ctx_) return "";
         const char* n = lembed_text_embedding_model_name(ctx_);
         return n ? std::string(n) : "";
@@ -162,7 +151,7 @@ public:
              &callback));
     }
 
-    void close() {
+    void close() override {
         if (ctx_) {
             lembed_text_embedding_free(ctx_);
             ctx_ = nullptr;

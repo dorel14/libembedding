@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - model_selector.hpp
  * Auto model selection based on hardware and use case
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -147,3 +150,7 @@ static lembed_status_t auto_select_impl(
 }} /* namespace lembed::detail */
 
 #endif /* LIBEMBEDDING_MODEL_SELECTOR_HPP */
+
+
+
+

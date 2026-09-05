@@ -27,13 +27,16 @@ namespace lembed { namespace detail {
 
 /* Get number of logical CPU cores */
 inline int cpu_logical_cores() {
+    static int cores = []() {
 #ifdef _WIN32
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    return (int)si.dwNumberOfProcessors;
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        return (int)si.dwNumberOfProcessors;
 #else
-    return (int)sysconf(_SC_NPROCESSORS_ONLN);
+        return (int)sysconf(_SC_NPROCESSORS_ONLN);
 #endif
+    }();
+    return cores;
 }
 
 /* Get physical CPU cores */

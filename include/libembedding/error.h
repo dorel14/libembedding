@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - C Header-Only Embedding Library
  * error.h - Error codes and error reporting
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -33,6 +36,8 @@ typedef enum {
     LEMBED_ERROR_MODEL_NOT_FOUND,
     LEMBED_ERROR_UNSUPPORTED,
     LEMBED_ERROR_BATCH_SIZE,
+    LEMBED_ERROR_LLAMA,
+    LEMBED_ERROR_CACHE_MISS,
 } lembed_status_t;
 
 /* Return a static string for the given status code */
@@ -70,6 +75,8 @@ const char* lembed_status_message(lembed_status_t status) {
         case LEMBED_ERROR_MODEL_NOT_FOUND:  return "Model not found";
         case LEMBED_ERROR_UNSUPPORTED:      return "Unsupported operation";
         case LEMBED_ERROR_BATCH_SIZE:       return "Invalid batch size for quantization mode";
+        case LEMBED_ERROR_LLAMA:            return "llama.cpp error";
+        case LEMBED_ERROR_CACHE_MISS:       return "Cache miss";
         default:                            return "Unknown error";
     }
 }
@@ -104,4 +111,5 @@ static inline void lembed__set_error(const char* msg) {
 #endif /* LIBEMBEDDING_ERROR_IMPL */
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
-#endif /* LIBEMBEDDING_ERROR_H */
+#endif /* LIBEMBEDDING_ERROR_H*/
+

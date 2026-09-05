@@ -1,6 +1,9 @@
-/*
+﻿/*
  * libembedding - C Header-Only Embedding Library
  * model_registry.h - Model registry query API
+ *
+ * Auteur: David Orel
+ * Version: 1.4.0
  *
  * SPDX-License-Identifier: MIT
  */
@@ -430,3 +433,7 @@ int lembed_find_image_model_by_code(const char* model_code) {
 #endif /* LIBEMBEDDING_IMPLEMENTATION */
 
 #endif /* LIBEMBEDDING_MODEL_REGISTRY_H */
+
+
+
+
