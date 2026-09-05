@@ -64,7 +64,16 @@ class TextEmbedding:
         pooling: str = "mean",
         auto_workers: bool = False,
         cache_size: int = 0,
+        num_threads: int | None = None,
     ):
+        if num_threads is not None:
+            warnings.warn(
+                "num_threads is deprecated, use threads",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            threads = num_threads
+
         self._ctx = None
         self._dim = 0
         self._batch_size = batch_size
@@ -133,8 +142,9 @@ class TextEmbedding:
                     1 if offline else 0,
                     model_dir,
                 ))
-                model_dir = ffi.string(model_dir[0]).decode("utf-8")
-                lib.lembed_free_string(model_dir[0])
+                model_dir_ptr = model_dir[0]
+                model_dir = ffi.string(model_dir_ptr).decode("utf-8")
+                lib.lembed_free_string(model_dir_ptr)
 
             opts = ffi.new("lembed_text_options_t *")
             opts.provider = _BACKEND_ENUM.get(provider, 0)
