@@ -205,6 +205,18 @@ jobs:
             Write-Host "Vendored: $($_.Name)"
           }
 
+          # Vendor llama.cpp runtime DLLs required by libembedding.dll
+          $llamaDlls = @("llama.dll", "ggml.dll", "ggml-cpu.dll", "ggml-base.dll")
+          foreach ($dll in $llamaDlls) {
+            $src = Join-Path "build/bin/Release" $dll
+            if (Test-Path $src) {
+              Copy-Item $src python/src/libembedding/ -Force
+              Write-Host "Vendored llama.cpp: $dll"
+            } else {
+              Write-Host "WARNING: $dll not found under build/bin/Release"
+            }
+          }
+
           Get-ChildItem python/src/libembedding/
 
       # ── Build the Python wheel ───────────────────────────────────
