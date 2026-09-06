@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.5.9 (2026-09-06)
+
+### Bug Fixes
+
+- Include llama.cpp runtime DLLs in Windows wheel
+  ([`620a85a`](https://github.com/dorel14/libembedding/commit/620a85a153e3857d575fdf0b809c8cc51daee6da))
+
+
 ## v1.5.8 (2026-09-05)
 
 ### Bug Fixes
